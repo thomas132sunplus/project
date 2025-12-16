@@ -1,0 +1,186 @@
+/* 全域設定 */
+body {
+    font-family: "微軟正黑體", sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #fff8f0;
+    color: #4b2e2e;
+    line-height: 1.6;
+}
+
+/* 頁首設計 */
+header {
+    background-color: #ffb347;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2.5em;
+    letter-spacing: 2px;
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+nav a {
+    text-decoration: none;
+    color: white;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+nav a:hover {
+    color: #6b3e26;
+}
+
+/* Hero 區塊 */
+.hero {
+    text-align: center;
+    padding: 40px 20px;
+    background: linear-gradient(to right, #ffe0b2, #fff3e0);
+}
+
+.hero img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.hero h2 {
+    font-size: 2em;
+    margin-top: 20px;
+    color: #d35400;
+}
+
+.hero p {
+    font-size: 1.2em;
+    color: #6b3e26;
+}
+
+/* 區塊標題 */
+section h2 {
+    text-align: center;
+    font-size: 2em;
+    margin-top: 40px;
+    color: #a0522d;
+}
+
+/* 商品列表 */
+.products ul,
+.featured-products ul,
+.news ul {
+    list-style: none;
+    padding: 0;
+    margin: 20px auto;
+    max-width: 800px;
+}
+
+.products li,
+.featured-products li,
+.news li {
+    background-color: #fff0e6;
+    margin: 10px 0;
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 下午茶區塊 */
+.afternoon-tea {
+    background-color: #fce4ec;
+    padding: 30px;
+    text-align: center;
+    font-style: italic;
+}
+
+/* 門市與營業資訊 */
+.store-info,
+.business-info {
+    padding: 20px;
+    background-color: #fffaf0;
+    border-top: 2px dashed #ffb347;
+}
+
+/* 最新消息 */
+.news li {
+    font-size: 1.1em;
+}
+
+/* 顧客好評 */
+.reviews blockquote {
+    font-style: italic;
+    background-color: #f9fbe7;
+    padding: 15px;
+    margin: 10px auto;
+    max-width: 600px;
+    border-left: 5px solid #ffb347;
+}
+
+/* 線上點餐表單 */
+.online-order {
+    background-color: #fff3e0;
+    padding: 30px;
+    max-width: 600px;
+    margin: 0 auto;
+    border-radius: 10px;
+}
+.online-order form {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 15px 20px;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.online-order label {
+    text-align: right;
+    font-weight: bold;
+}
+
+.online-order input,
+.online-order select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+.online-order button {
+    grid-column: span 2;
+    justify-self: center;
+    padding: 10px 20px;
+    background-color: #ffb347;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.online-order button:hover {
+    background-color: #e67e22;
+}
+
+/* 頁尾 */
+footer {
+    background-color: #ffb347;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    margin-top: 40px;
+    font-size: 0.9em;
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>書妤烘焙工坊 SweetWisdom Bakery</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>書妤烘焙工坊</h1>
+    <nav>
+      <ul>
+        <li><a href="#products">商品介紹</a></li>
+        <li><a href="#order">線上訂購</a></li>
+        <li><a href="#contact">聯絡我們</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h2>香氣四溢的幸福滋味</h2>
+    <p>每日新鮮出爐，歡迎光臨品嚐！</p>
+    <div id="countdown"></div>
+  </section>
+
+  <section id="products" class="products">
+    <h2>人氣商品</h2>
+    <ul>
+      <li>北海道牛奶吐司 - NT$80</li>
+      <li>焦糖布丁塔 - NT$65</li>
+      <li>芋泥奶酥麵包 - NT$70</li>
+      <li>手工堅果餅乾 - NT$50</li>
+      <li>芒果生乳捲 - NT$90</li>
+    </ul>
+  </section>
+
+  <section id="order" class="order">
+    <h2>線上訂購</h2>
+    <form>
+      <label for="product">選擇商品：</label>
+      <select id="product">
+        <option value="milk-toast">北海道牛奶吐司</option>
+        <option value="caramel-tart">焦糖布丁塔</option>
+        <option value="taro-bread">芋泥奶酥麵包</option>
+        <option value="nut-cookie">手工堅果餅乾</option>
+        <option value="mango-roll">芒果生乳捲</option>
+      </select>
+
+      <label for="quantity">數量：</label>
+      <input type="number" id="quantity" min="1" value="1" />
+
+      <p id="priceDisplay">預估金額：NT$80</p>
+
+      <button type="submit">送出訂單</button>
+    </form>
+  </section>
+
+  <section id="contact" class="contact">
+    <h2>聯絡我們</h2>
+    <p>地址：新竹市香山區幸福路88號</p>
+    <p>電話：03-1234-5678</p>
+    <p>Email：sweet@wisdombakery.com</p>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 書妤烘焙工坊 | 甜蜜每一天</p>
+  </footer>
+
+  <button id="backToTop">↑ 回到頂端</button>
+
+  <script src="script.js"></script>
+</body>
+</html>

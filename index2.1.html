@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>妹妹/書維烘培工坊</title>
+    <meta name="description" content="妹妹/書維烘培工坊 — 每日新鮮出爐的麵包與甜點，提供線上點餐與門市自取服務。">
+    <meta property="og:title" content="妹妹/書維烘培工坊">
+    <meta property="og:description" content="每日新鮮出爐，香氣四溢的幸福滋味。線上點餐，宅配或門市自取。">
+    <meta property="og:image" content="images/bakery.jpg">
+    <link rel="icon" href="images/favicon.ico">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>書維/書妤烘培工坊</h1>
+        <nav>
+            <ul>
+                <li><a href="#">最新消息</a></li>
+                <li><a href="#">關於我們</a></li>
+                <li><a href="#">門市據點</a></li>
+                <li><a href="#">會員專區</a></li>
+                <li><a href="#online-order">線上點餐</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- 將主要內容包入 main -->
+    <main>
+    <section class="hero">
+        <!-- 建議將檔名改為英文 (images/bakery.jpg)，並加入 srcset / lazy loading / 寬高 -->
+        <img src="images/bakery.jpg"
+             srcset="images/bakery-small.jpg 480w, images/bakery.jpg 1200w"
+             sizes="(max-width:600px) 100vw, 1200px"
+             alt="妹妹烘培坊六家店面設計"
+             width="1200" height="800"
+             loading="lazy">
+        <h2>香氣四溢的幸福滋味</h2>
+        <p>每日新鮮出爐，歡迎光臨品嚐！</p>
+    </section>
+
+    <section class="products">
+        <h2>健康穀物新鮮出爐</h2>
+        <ul>
+            <li>全麥吐司</li>
+            <li>金牛角</li>
+            <li>法國麵包</li>
+            <li>巧克力蛋糕</li>
+            <li>紅豆車輪餅</li>
+            <li>北海道牛奶吐司</li>
+            <li>焦糖布丁塔</li>
+            <li>芋泥奶酥麵包</li>
+            <li>手工堅果餅乾</li>
+            <li>季節限定：芒果生乳捲</li>
+        </ul>
+        <p><strong>香濃可口，軟Q彈牙，吃得到真材實料！</strong></p>
+    </section>
+
+    <section class="afternoon-tea">
+        <h2>下午茶時光</h2>
+        <p>咖啡、蛋糕、水果、布丁、巧克力、冰淇淋</p>
+        <p><strong>亞麻的細雨，葵花的微風，最適合來一場甜蜜的下午茶</strong></p>
+    </section>
+
+    <section class="featured-products">
+        <h2>人氣推薦商品</h2>
+        <ul>
+            <li><strong>北海道牛奶吐司</strong> - 濃郁奶香，柔軟綿密，早餐首選</li>
+            <li><strong>焦糖布丁塔</strong> - 酥脆塔皮搭配滑順布丁，甜而不膩</li>
+            <li><strong>手工堅果餅乾</strong> - 無添加防腐劑，健康又美味</li>
+            <li><strong>芋泥奶酥麵包</strong> - 綿密芋泥與奶酥完美融合</li>
+            <li><strong>季節限定：芒果生乳捲</strong> - 夏季清爽首選，限量供應</li>
+        </ul>
+    </section>
+
+    <section class="store-info">
+        <h3>門市設計與環境</h3>
+        <p>六家分店皆設有大面落地窗，陽光灑落，麵包香氣撲鼻，讓您一進門就感受到家的溫暖。</p>
+    </section>
+
+    <section class="business-info">
+        <h2>營業資訊</h2>
+        <ul>
+            <li>營業時間：週一至週日 08:00 - 20:00</li>
+            <li>客服電話：02-1234-5678</li>
+            <li>Email：service@meimeibakery.com</li>
+            <li>地址：台灣新竹縣竹北市幸福路88號</li>
+        </ul>
+    </section>
+
+    <section class="news">
+        <h2>最新消息</h2>
+        <ul>
+            <li>🎉 週末限定：買任兩款麵包送手工餅乾乙份！</li>
+            <li>🍰 新品上市：抹茶紅豆生乳捲，限量供應！</li>
+            <li>👩‍🍳 烘焙課程開放報名，歡迎親子一起來玩麵粉！</li>
+        </ul>
+    </section>
+
+    <section class="reviews">
+        <h2>顧客好評</h2>
+        <blockquote>「妹妹烘培坊的金牛角真的超酥！每週都要來報到～」－小芸</blockquote>
+        <blockquote>「店員親切，環境溫馨，蛋糕好吃到不想分享！」－阿宏</blockquote>
+    </section>
+
+    <section id="online-order" class="online-order">
+        <h2>線上點餐服務</h2>
+        <p>想吃妹妹烘培坊的美味麵包卻不方便出門？現在提供線上點餐，宅配到府或門市自取都可以！</p>
+        <form action="submit_order.php" method="post" id="orderForm" novalidate>
+             <label for="name">姓名：</label>
+             <input type="text" id="name" name="name" required aria-required="true"><br>
+ 
+             <label for="phone">電話：</label>
+             <!-- 範例格式: 02-12345678 或 0912345678 -->
+             <input type="tel" id="phone" name="phone" required aria-required="true" pattern="^(\d{2,4}-\d{6,8}|\d{9,10})$" placeholder="02-12345678 或 0912345678"><br>
++
++            <label for="email">Email：</label>
++            <input type="email" id="email" name="email" required aria-required="true" placeholder="name@example.com"><br>
+ 
+             <label for="product">選擇商品：</label>
+             <select id="product" name="product">
+                 <option value="milk-toast">北海道牛奶吐司</option>
+                 <option value="caramel-tart">焦糖布丁塔</option>
+                 <option value="nut-cookie">手工堅果餅乾</option>
+                 <option value="taro-bread">芋泥奶酥麵包</option>
+                 <option value="mango-roll">芒果生乳捲</option>
+             </select><br>
+ 
+             <label for="quantity">數量：</label>
+             <input type="number" id="quantity" name="quantity" min="1" required><br>
+ 
+             <label for="delivery">取貨方式：</label>
+             <select id="delivery" name="delivery">
+                 <option value="pickup">門市自取</option>
+                 <option value="delivery">宅配到府</option>
+             </select><br>
+ 
+             <button type="submit">送出訂單</button>
+         </form>
+     </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 妹妹烘培工坊 | 甜蜜每一天</p>
+    </footer>
+
++    <!-- 簡單前端驗證示範（放在檔案末端）-->
++    <script>
++    // Basic client-side validation for phone/email before submit
++    (function(){
++      const form = document.getElementById('orderForm');
++      if (!form) return;
++      form.addEventListener('submit', function(e){
++        const phone = document.getElementById('phone');
++        const email = document.getElementById('email');
++        const phoneRe = /^(\d{2,4}-\d{6,8}|\d{9,10})$/;
++        if (!phoneRe.test(phone.value.trim())) {
++          e.preventDefault();
++          alert('請輸入正確的電話格式，例如：02-12345678 或 0912345678');
++          phone.focus();
++          return;
++        }
++        if (!email.checkValidity()) {
++          e.preventDefault();
++          alert('請輸入有效的 Email');
++          email.focus();
++        }
++      });
++    })();
++    </script>
+</body>
+</html>

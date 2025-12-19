@@ -94,6 +94,15 @@ section h2 {
     padding: 10px 15px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.products li .price {
+    color: #d35400;
+    font-weight: bold;
+    font-size: 1.1em;
 }
 
 /* 下午茶區塊 */

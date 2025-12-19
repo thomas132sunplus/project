@@ -83,7 +83,7 @@ section h2 {
     list-style: none;
     padding: 0;
     margin: 20px auto;
-    max-width: 800px;
+    max-width: 350px;
 }
 
 .products li,
@@ -103,6 +103,10 @@ section h2 {
     color: #d35400;
     font-weight: bold;
     font-size: 1.1em;
+    margin-left: 20px;
+    flex-shrink: 0;
+    min-width: 100px;
+    text-align: right;
 }
 
 /* 下午茶區塊 */

@@ -140,8 +140,14 @@ section h2 {
 .store-info,
 .business-info {
     padding: 20px;
-    background-color: #fffaf0;
+    background-color: #f0f8ff; /* 改成淡藍色背景 */
     border-top: 2px dashed #ffb347;
+    text-align: center;
+}
+
+.business-info ul {
+    list-style: none;
+    padding: 0;
 }
 
 /* 最新消息 */

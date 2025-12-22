@@ -78,7 +78,6 @@ section h2 {
 
 /* 商品列表 */
 .products ul,
-.featured-products ul,
 .news ul {
     list-style: none;
     padding: 0;
@@ -86,8 +85,14 @@ section h2 {
     max-width: 350px;
 }
 
+.featured-products ul {
+    list-style: none;
+    padding: 0;
+    margin: 20px auto;
+    max-width: 600px;
+}
+
 .products li,
-.featured-products li,
 .news li {
     background-color: #fff0e6;
     margin: 10px 0;
@@ -97,6 +102,20 @@ section h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.featured-products li {
+    background-color: #fff0e6;
+    margin: 10px 0;
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+}
+
+.featured-products li strong {
+    min-width: 200px;
+    display: inline-block;
 }
 
 .products li .price {

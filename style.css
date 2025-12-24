@@ -153,6 +153,13 @@ section h2 {
 /* 最新消息 */
 .news li {
     font-size: 1.1em;
+    text-align: center;
+    justify-content: center;
+}
+
+/* 調整最新消息欄寬，避免過窄造成換行 */
+.news ul {
+    max-width: 700px;
 }
 
 /* 顧客好評 */

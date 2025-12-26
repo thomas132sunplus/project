@@ -51,21 +51,51 @@ nav a:hover {
 }
 
 .hero img {
-    max-width: 100%;
+    width: 70%;
+    max-width: 1000px;
     height: auto;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    animation: fadeIn 1.5s ease-in;
+    transition: transform 0.3s ease;
+}
+
+.hero img:hover {
+    transform: scale(1.02);
 }
 
 .hero h2 {
     font-size: 2em;
     margin-top: 20px;
     color: #d35400;
+    animation: slideInFromBottom 1s ease-out;
 }
 
 .hero p {
     font-size: 1.2em;
     color: #6b3e26;
+    animation: slideInFromBottom 1.2s ease-out;
+}
+
+/* 動畫定義 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideInFromBottom {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* 區塊標題 */
@@ -102,6 +132,14 @@ section h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    transition: all 0.3s ease;
+}
+
+.products li:hover,
+.news li:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    background-color: #ffe5d9;
 }
 
 .featured-products li {
@@ -213,11 +251,13 @@ section h2 {
     border-radius: 5px;
     font-size: 1em;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .online-order button:hover {
     background-color: #e67e22;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(230, 126, 34, 0.4);
 }
 
 /* 頁尾 */
@@ -228,4 +268,296 @@ footer {
     padding: 15px;
     margin-top: 40px;
     font-size: 0.9em;
+}
+
+/* 回到頂端按鈕 */
+#backToTop {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background-color: #ffb347;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 20px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    display: none;
+    transition: all 0.3s ease;
+}
+
+#backToTop:hover {
+    background-color: #e67e22;
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+#backToTop:active {
+    transform: translateY(-2px);
+}
+
+/* 飛舞的小精靈 */
+.sprite {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    animation: spriteFlyEverywhere 20s ease-in-out infinite;
+}
+
+.sprite-body {
+    position: relative;
+    width: 40px;
+    height: 50px;
+    background: linear-gradient(135deg, #ffb347, #ffcc99);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    box-shadow: 0 0 20px rgba(255, 179, 71, 0.6);
+}
+
+/* 翅膀 */
+.sprite-wing {
+    position: absolute;
+    width: 35px;
+    height: 45px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(173, 216, 230, 0.6));
+    border-radius: 50%;
+    top: 5px;
+    box-shadow: 0 0 10px rgba(135, 206, 250, 0.5);
+}
+
+.sprite-wing-left {
+    left: -20px;
+    animation: wingFlapLeft 0.3s ease-in-out infinite;
+    transform-origin: right center;
+}
+
+.sprite-wing-right {
+    right: -20px;
+    animation: wingFlapRight 0.3s ease-in-out infinite;
+    transform-origin: left center;
+}
+
+@keyframes wingFlapLeft {
+    0%, 100% {
+        transform: rotateY(0deg) rotateZ(-10deg);
+    }
+    50% {
+        transform: rotateY(-30deg) rotateZ(-20deg);
+    }
+}
+
+@keyframes wingFlapRight {
+    0%, 100% {
+        transform: rotateY(0deg) rotateZ(10deg);
+    }
+    50% {
+        transform: rotateY(30deg) rotateZ(20deg);
+    }
+}
+
+/* 臉部 */
+.sprite-face {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.sprite-eye {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #333;
+    border-radius: 50%;
+    top: 15px;
+    animation: blink 3s infinite;
+}
+
+.sprite-eye-left {
+    left: 10px;
+}
+
+.sprite-eye-right {
+    right: 10px;
+}
+
+@keyframes blink {
+    0%, 96%, 100% {
+        transform: scaleY(1);
+    }
+    98% {
+        transform: scaleY(0.1);
+    }
+}
+
+/* 臉紅 */
+.sprite-blush {
+    position: absolute;
+    width: 8px;
+    height: 6px;
+    background: rgba(255, 140, 140, 0.6);
+    border-radius: 50%;
+    top: 20px;
+    animation: blushPulse 2s ease-in-out infinite;
+}
+
+.sprite-blush-left {
+    left: 4px;
+}
+
+.sprite-blush-right {
+    right: 4px;
+}
+
+@keyframes blushPulse {
+    0%, 100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
+}
+
+.sprite-smile {
+    position: absolute;
+    width: 15px;
+    height: 8px;
+    border: 2px solid #d35400;
+    border-top: none;
+    border-radius: 0 0 15px 15px;
+    top: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* 星星閃爍（表示好吃） */
+.sprite-sparkle {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    font-size: 14px;
+    animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0.5) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2) rotate(180deg);
+    }
+}
+
+/* 到處飛舞的動畫 */
+@keyframes spriteFlyEverywhere {
+    0% {
+        left: -50px;
+        top: 20%;
+        transform: rotate(0deg);
+    }
+    5% {
+        left: 10%;
+        top: 15%;
+        transform: rotate(-15deg);
+    }
+    10% {
+        left: 25%;
+        top: 30%;
+        transform: rotate(10deg);
+    }
+    15% {
+        left: 40%;
+        top: 10%;
+        transform: rotate(-8deg);
+    }
+    20% {
+        left: 55%;
+        top: 25%;
+        transform: rotate(12deg);
+    }
+    25% {
+        left: 70%;
+        top: 15%;
+        transform: rotate(-10deg);
+    }
+    30% {
+        left: 85%;
+        top: 35%;
+        transform: rotate(15deg);
+    }
+    35% {
+        left: 90%;
+        top: 50%;
+        transform: rotate(-12deg);
+    }
+    40% {
+        left: 75%;
+        top: 60%;
+        transform: rotate(8deg);
+    }
+    45% {
+        left: 60%;
+        top: 70%;
+        transform: rotate(-15deg);
+    }
+    50% {
+        left: 45%;
+        top: 55%;
+        transform: rotate(10deg);
+    }
+    55% {
+        left: 30%;
+        top: 65%;
+        transform: rotate(-8deg);
+    }
+    60% {
+        left: 15%;
+        top: 50%;
+        transform: rotate(12deg);
+    }
+    65% {
+        left: 10%;
+        top: 40%;
+        transform: rotate(-10deg);
+    }
+    70% {
+        left: 20%;
+        top: 25%;
+        transform: rotate(15deg);
+    }
+    75% {
+        left: 35%;
+        top: 35%;
+        transform: rotate(-12deg);
+    }
+    80% {
+        left: 50%;
+        top: 20%;
+        transform: rotate(8deg);
+    }
+    85% {
+        left: 65%;
+        top: 30%;
+        transform: rotate(-15deg);
+    }
+    90% {
+        left: 80%;
+        top: 25%;
+        transform: rotate(10deg);
+    }
+    95% {
+        left: 95%;
+        top: 20%;
+        transform: rotate(-8deg);
+    }
+    100% {
+        left: calc(100% + 50px);
+        top: 15%;
+        transform: rotate(0deg);
+    }
 }

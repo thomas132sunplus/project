@@ -33,7 +33,7 @@ backToTopBtn.addEventListener("click", () => {
 const countdown = document.getElementById("countdown");
 function updateCountdown() {
   const now = new Date();
-  const deadline = new Date("2025-08-25T20:00:00");
+  const deadline = new Date("2026-01-15T20:00:00");
   const diff = deadline - now;
   if (diff <= 0) {
     countdown.textContent = "🎉 活動已結束";

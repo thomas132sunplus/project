@@ -200,6 +200,32 @@ section h2 {
     max-width: 700px;
 }
 
+/* 倒數計時器 */
+.countdown-timer {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #d35400;
+    background: linear-gradient(135deg, #fff0e6, #ffe5d9);
+    padding: 15px 25px;
+    border-radius: 10px;
+    margin: 20px auto;
+    max-width: 500px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    text-align: center;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 5px 15px rgba(211, 84, 0, 0.3);
+    }
+}
+
 /* 顧客好評 */
 .reviews blockquote {
     font-style: italic;

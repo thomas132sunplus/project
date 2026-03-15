@@ -1,0 +1,187 @@
+// Firestore 安全規則範例
+// 這個檔案用於設定 Firestore 的存取權限
+// 複製內容到 Firebase Console > Firestore Database > 規則
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // users collection 規則
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // teams collection 規則
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+      
+      // teams 子集合規則
+      match /recordings/{recordingId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if request.auth != null;
+      }
+    }
+    
+    // tournaments collection 規則
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+    
+    // invitations collection 規則
+    match /invitations/{invitationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // activities collection 規則（舊的相容）
+    match /activities/{activityId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+    
+    // messages collection 規則（聊天訊息）
+    match /messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // practice_matches collection 規則（練習賽）
+    match /practice_matches/{matchId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+      
+      // practice_matches 子集合規則
+      match /recordings/{recordingId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if request.auth != null;
+      }
+    }
+    
+    // feedback collection 規則（反饋）
+    match /feedback/{feedbackId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // practice_match_messages collection 規則（練習賽聊天訊息）
+    match /practice_match_messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // practice_match_files collection 規則（練習賽資料文件）
+    match /practice_match_files/{fileId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // practice_match_recordings collection 規則（練習賽錄音）
+    match /practice_match_recordings/{recordingId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // practice_match_calls collection 規則（練習賽通話/視訊）
+    match /practice_match_calls/{callId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // team_messages collection 規則（隊伍聊天訊息）
+    match /team_messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // team_files collection 規則（隊伍文件）
+    match /team_files/{fileId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // team_recordings collection 規則（隊伍錄音）
+    match /team_recordings/{recordingId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // team_calls collection 規則（隊伍通話/視訊）
+    match /team_calls/{callId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // team_events collection 規則（隊伍日曆事件）
+    match /team_events/{eventId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // team_availability collection 規則（隊員可用時間）
+    match /team_availability/{availabilityId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+    
+    // voice_rooms collection 規則（語音會議室）
+    match /voice_rooms/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+      
+      // 信令子集合規則（WebRTC）
+      match /offers/{offerId} {
+        allow read, write: if request.auth != null;
+      }
+      
+      match /answers/{answerId} {
+        allow read, write: if request.auth != null;
+      }
+      
+      match /ice_candidates/{candidateId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // notifications collection 規則（通知）
+    match /notifications/{notificationId} {
+      // 用戶只能讀取自己的通知
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      // 任何已登入用戶都可以創建通知（發送給其他人）
+      allow create: if request.auth != null;
+      // 用戶只能更新和刪除自己的通知
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // personal_events collection 規則（個人日曆事件）
+    match /personal_events/{eventId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}

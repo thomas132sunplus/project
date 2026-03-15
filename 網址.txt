@@ -1,0 +1,12 @@
+開啟 PowerShell
+
+按 Windows 鍵 + X
+選擇「Windows PowerShell」或「終端機」
+
+貼上cd "C:\Users\USER\OneDrive\桌面\邊境之外0.0"
+
+貼上npm run dev
+
+開啟瀏覽器
+
+訪問：http://localhost:5173

@@ -56,17 +56,45 @@ export function AppRoutes() {
 
   useEventReminder();
 
+  // 只彈一次：localStorage 控制
   useEffect(() => {
-    console.log("[DEBUG] currentUser:", currentUser);
-    console.log("[DEBUG] surveyChecked:", surveyChecked);
-    console.log("[DEBUG] showSurvey:", showSurvey);
-  }, [currentUser, surveyChecked, showSurvey]);
-
-  useEffect(() => {
-    if (currentUser && location.pathname === "/") {
-      navigate("/feedback", { replace: true });
+    if (currentUser) {
+      const surveyDone = localStorage.getItem("meetingRoomSurveyDone");
+      if (!surveyDone) {
+        // 只要登入且沒回覆過，進站自動跳 feedback 並彈窗
+        if (location.pathname !== "/feedback") {
+          navigate("/feedback", { replace: true });
+        }
+        setShowSurvey(true);
+      }
     }
   }, [currentUser, location.pathname, navigate]);
+
+  // 回饋送出時
+  const handleSurveySubmit = async (data) => {
+    // 寫入 feedback collection
+    try {
+      await addDoc(collection(db, "feedback"), {
+        type: "meeting-room-survey",
+        userId: currentUser?.uid || null,
+        userEmail: currentUser?.email || null,
+        choice: data.choice,
+        otherText: data.otherText || "",
+        createdAt: serverTimestamp(),
+      });
+      localStorage.setItem("meetingRoomSurveyDone", "1");
+    } catch (e) {
+      // 可加錯誤提示
+    }
+    setShowSurvey(false);
+    setSurveyChecked(true);
+  };
+
+  // 關閉彈窗但不送出
+  const handleSurveyClose = () => {
+    setShowSurvey(false);
+    setSurveyChecked(true);
+  };
 
   return (
     <Routes>
@@ -80,10 +108,10 @@ export function AppRoutes() {
           <ProtectedRoute>
             <div className="min-h-screen bg-gray-50">
               <Navbar />
-              {showSurvey && surveyChecked && (
+              {showSurvey && (
                 <MeetingRoomSurveyModal
-                  onClose={() => setShowSurvey(false)}
-                  onSubmit={() => setSurveyChecked(true)}
+                  onClose={handleSurveyClose}
+                  onSubmit={handleSurveySubmit}
                 />
               )}
               <Outlet />

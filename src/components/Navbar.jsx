@@ -60,7 +60,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-14 md:h-16">
           {/* 網站標題 */}
           <Link
-            to="/"
+            to="/teams"
             className="text-lg md:text-2xl font-extrabold hover:text-blue-300 transition tracking-wide"
           >
             邊境之外

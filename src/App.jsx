@@ -90,10 +90,11 @@ export function AppRoutes() {
     setSurveyChecked(true);
   };
 
-  // 關閉彈窗但不送出
+  // 關閉彈窗但不送出，並跳轉到 /teams
   const handleSurveyClose = () => {
     setShowSurvey(false);
     setSurveyChecked(true);
+    navigate("/teams", { replace: true });
   };
 
   return (

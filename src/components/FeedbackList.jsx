@@ -1,12 +1,17 @@
 // FeedbackList.jsx - 查看所有反饋（管理員頁面）
 
 import { useState, useEffect } from "react";
-import { getAllFeedback } from "../firebase/feedback";
+import {
+  getAllFeedback,
+  deleteFeedback,
+  updateFeedbackStatus,
+} from "../firebase/feedback";
 
 export function FeedbackList() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all"); // all, suggestion, bug, other
+  const [typeFilter, setTypeFilter] = useState("all"); // all, suggestion, bug, other, meeting-room-survey
+  const [statusFilter, setStatusFilter] = useState("pending"); // pending, in-progress, resolved, all
 
   useEffect(() => {
     loadFeedbacks();
@@ -25,11 +30,21 @@ export function FeedbackList() {
     }
   };
 
-  const filteredFeedbacks =
-    filter === "all" ? feedbacks : feedbacks.filter((f) => f.type === filter);
+  const filteredFeedbacks = feedbacks.filter((f) => {
+    const typeOk = typeFilter === "all" ? true : f.type === typeFilter;
+    const statusOk =
+      statusFilter === "all" ? true : (f.status || "pending") === statusFilter;
+    return typeOk && statusOk;
+  });
 
   const getTypeLabel = (type) => {
     switch (type) {
+      case "meeting-room-survey":
+        return {
+          icon: "🏠",
+          label: "會議室意願調查",
+          color: "bg-purple-100 text-purple-800",
+        };
       case "suggestion":
         return {
           icon: "💡",
@@ -109,49 +124,71 @@ export function FeedbackList() {
 
       {/* 篩選器 */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-semibold text-gray-700">篩選：</span>
-          <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-sm font-semibold text-gray-700">狀態：</span>
+          <div className="flex gap-2 mr-6">
             <button
-              onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === "all"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              onClick={() => setStatusFilter("pending")}
+              className={`px-4 py-2 rounded-lg transition ${statusFilter === "pending" ? "bg-yellow-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              待處理 (
+              {
+                feedbacks.filter((f) => (f.status || "pending") === "pending")
+                  .length
+              }
+              )
+            </button>
+            <button
+              onClick={() => setStatusFilter("in-progress")}
+              className={`px-4 py-2 rounded-lg transition ${statusFilter === "in-progress" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              處理中 (
+              {feedbacks.filter((f) => f.status === "in-progress").length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("resolved")}
+              className={`px-4 py-2 rounded-lg transition ${statusFilter === "resolved" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              已解決 ({feedbacks.filter((f) => f.status === "resolved").length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-4 py-2 rounded-lg transition ${statusFilter === "all" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               全部 ({feedbacks.length})
             </button>
+          </div>
+          <span className="text-sm font-semibold text-gray-700">分類：</span>
+          <div className="flex gap-2">
             <button
-              onClick={() => setFilter("suggestion")}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === "suggestion"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              onClick={() => setTypeFilter("all")}
+              className={`px-4 py-2 rounded-lg transition ${typeFilter === "all" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
-              💡 功能建議 (
-              {feedbacks.filter((f) => f.type === "suggestion").length})
+              全部
             </button>
             <button
-              onClick={() => setFilter("bug")}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === "bug"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              onClick={() => setTypeFilter("suggestion")}
+              className={`px-4 py-2 rounded-lg transition ${typeFilter === "suggestion" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
-              🐛 Bug 回報 ({feedbacks.filter((f) => f.type === "bug").length})
+              💡 功能建議
             </button>
             <button
-              onClick={() => setFilter("other")}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === "other"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              onClick={() => setTypeFilter("bug")}
+              className={`px-4 py-2 rounded-lg transition ${typeFilter === "bug" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
-              💬 其他 ({feedbacks.filter((f) => f.type === "other").length})
+              🐛 Bug 回報
+            </button>
+            <button
+              onClick={() => setTypeFilter("other")}
+              className={`px-4 py-2 rounded-lg transition ${typeFilter === "other" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              💬 其他
+            </button>
+            <button
+              onClick={() => setTypeFilter("meeting-room-survey")}
+              className={`px-4 py-2 rounded-lg transition ${typeFilter === "meeting-room-survey" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+            >
+              🏠 會議室意願調查
             </button>
           </div>
         </div>
@@ -192,13 +229,62 @@ export function FeedbackList() {
                       {feedback.title}
                     </h3>
                   </div>
+                  {/* 狀態操作與刪除 */}
+                  <div className="flex flex-col items-end gap-2 min-w-[120px]">
+                    <select
+                      className="border rounded px-2 py-1 text-sm"
+                      value={feedback.status || "pending"}
+                      onChange={async (e) => {
+                        await updateFeedbackStatus(feedback.id, e.target.value);
+                        loadFeedbacks();
+                      }}
+                    >
+                      <option value="pending">待處理</option>
+                      <option value="in-progress">處理中</option>
+                      <option value="resolved">已解決</option>
+                    </select>
+                    <button
+                      className="text-xs text-red-600 hover:underline mt-1"
+                      onClick={async () => {
+                        if (window.confirm("確定要刪除這則反饋嗎？")) {
+                          await deleteFeedback(feedback.id);
+                          loadFeedbacks();
+                        }
+                      }}
+                    >
+                      刪除
+                    </button>
+                  </div>
                 </div>
 
-                {/* 描述 */}
+                {/* 描述/意願調查內容 */}
                 <div className="mb-4">
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {feedback.description}
-                  </p>
+                  {feedback.type === "meeting-room-survey" ? (
+                    <div className="space-y-1">
+                      <p className="text-gray-700">
+                        <span className="font-semibold">意願選擇：</span>
+                        {feedback.choice === "yes"
+                          ? "有使用會議室的意願"
+                          : feedback.choice === "no"
+                            ? "無使用會議室的意願"
+                            : feedback.choice === "other"
+                              ? "有其他想法"
+                              : feedback.choice === "never-show"
+                                ? "不再顯示此畫面"
+                                : feedback.choice || "-"}
+                      </p>
+                      {feedback.otherText && (
+                        <p className="text-gray-700">
+                          <span className="font-semibold">其他想法：</span>
+                          {feedback.otherText}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 whitespace-pre-wrap">
+                      {feedback.description}
+                    </p>
+                  )}
                 </div>
 
                 {/* 元資訊 */}

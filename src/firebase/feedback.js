@@ -8,6 +8,9 @@ import {
   orderBy,
   where,
   serverTimestamp,
+  deleteDoc,
+  doc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "./config";
 import { notifyFeedback } from "./notificationHelpers";
@@ -80,6 +83,35 @@ export async function getAllFeedback() {
     return feedbacks;
   } catch (error) {
     console.error("獲取反饋失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 刪除反饋
+ * @param {string} feedbackId
+ * @returns {Promise<void>}
+ */
+export async function deleteFeedback(feedbackId) {
+  try {
+    await deleteDoc(doc(db, COLLECTION_NAME, feedbackId));
+  } catch (error) {
+    console.error("刪除反饋失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 更新反饋狀態
+ * @param {string} feedbackId
+ * @param {string} status
+ * @returns {Promise<void>}
+ */
+export async function updateFeedbackStatus(feedbackId, status) {
+  try {
+    await updateDoc(doc(db, COLLECTION_NAME, feedbackId), { status });
+  } catch (error) {
+    console.error("更新反饋狀態失敗:", error);
     throw error;
   }
 }

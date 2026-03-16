@@ -10,10 +10,12 @@ import {
 } from "../firebase/invitations";
 import { useAuth } from "../contexts/AuthContext";
 import { getUserTeams } from "../firebase/teams";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export function PracticeMatching() {
   const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [teams, setTeams] = useState([]);
@@ -24,11 +26,27 @@ export function PracticeMatching() {
   const [showTeamSelector, setShowTeamSelector] = useState(false);
   const [targetTeamForInvite, setTargetTeamForInvite] = useState(null);
   const [invitationsMap, setInvitationsMap] = useState(new Map());
+  // 編輯模式
+  const [editTournamentId, setEditTournamentId] = useState(null);
 
   useEffect(() => {
     loadTournaments();
     loadMyTeams();
   }, [currentUser]);
+
+  // 監聽 query string，若有 tournamentId 並且 tournaments 載入完成，直接選中該盃賽（但不跳轉編輯）
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tid = params.get("tournamentId");
+    if (tid && tournaments.length > 0) {
+      const found = tournaments.find((t) => t.id === tid);
+      if (found) {
+        setSelectedTournament(found);
+        // 立即載入參賽隊伍
+        handleSelectTournament(found);
+      }
+    }
+  }, [location.search, tournaments]);
 
   // 當選擇了盃賽且 myTeams 載入完成後，載入邀請狀態
   useEffect(() => {

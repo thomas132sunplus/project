@@ -40,6 +40,7 @@ import { UserProfile } from "./components/UserProfile";
 import { ActivityList } from "./components/ActivityList";
 import { ActivityDetail } from "./components/ActivityDetail";
 import { ActivityForm } from "./components/ActivityForm";
+// import Guide from "./components/Guide";
 
 function ProtectedRoute({ children }) {
   const { currentUser } = useAuth();
@@ -104,6 +105,7 @@ export function AppRoutes() {
         path="/auth"
         element={currentUser ? <Navigate to="/" replace /> : <Auth />}
       />
+      {/* <Route path="/guide" element={<Guide />} /> */}
       <Route
         path="/*"
         element={

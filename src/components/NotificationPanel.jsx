@@ -17,6 +17,12 @@ export function NotificationPanel({ onClose }) {
   } = useNotifications();
 
   const handleNotificationClick = (notification) => {
+    // 盃賽更新通知：自動導向練習賽媒合頁並帶入盃賽編輯
+    if (notification.type === "tournament_update" && notification.relatedId) {
+      navigate(`/practice-matching?tournamentId=${notification.relatedId}`);
+      onClose();
+      return;
+    }
     if (notification.linkTo) {
       navigate(notification.linkTo);
       onClose();

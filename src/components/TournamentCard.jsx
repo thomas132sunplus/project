@@ -3,7 +3,7 @@
 
 import { Link } from "react-router-dom";
 
-export default function TournamentCard({ tournament }) {
+export function TournamentCard({ tournament }) {
   return (
     <Link
       to={`/tournament/${tournament.id}`}

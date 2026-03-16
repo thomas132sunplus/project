@@ -22,7 +22,7 @@ import {
   notifyMatchCancelled,
 } from "../firebase/notificationHelpers";
 
-export default function PracticeMatchDiscussion() {
+export function PracticeMatchDiscussion() {
   const { id } = useParams();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -167,7 +167,8 @@ export default function PracticeMatchDiscussion() {
 
   // 同意取消練習賽
   const handleConfirmCancel = async () => {
-    if (!window.confirm("確定要同意取消這場練習賽嗎？取消後將刪除此討論房間。")) return;
+    if (!window.confirm("確定要同意取消這場練習賽嗎？取消後將刪除此討論房間。"))
+      return;
 
     try {
       setCancelLoading(true);
@@ -287,60 +288,67 @@ export default function PracticeMatchDiscussion() {
         </p>
 
         {/* 取消練習賽按鈕 */}
-        {match.status !== "completed" && (() => {
-          const userTeamId = getUserTeamId();
-          const cancelRequest = match.cancelRequest;
-          const hasPendingCancel = cancelRequest?.status === "pending";
-          const isRequestingTeam = hasPendingCancel && cancelRequest.requestedBy === userTeamId;
-          const isOtherTeam = hasPendingCancel && cancelRequest.requestedBy !== userTeamId;
+        {match.status !== "completed" &&
+          (() => {
+            const userTeamId = getUserTeamId();
+            const cancelRequest = match.cancelRequest;
+            const hasPendingCancel = cancelRequest?.status === "pending";
+            const isRequestingTeam =
+              hasPendingCancel && cancelRequest.requestedBy === userTeamId;
+            const isOtherTeam =
+              hasPendingCancel && cancelRequest.requestedBy !== userTeamId;
 
-          if (!userTeamId) return null;
+            if (!userTeamId) return null;
 
-          if (hasPendingCancel && isRequestingTeam) {
+            if (hasPendingCancel && isRequestingTeam) {
+              return (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <button
+                    disabled
+                    className="w-full px-4 py-2.5 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                  >
+                    已送出取消請求
+                  </button>
+                  <p className="text-xs text-gray-400 mt-1 text-center">
+                    等待對方隊伍同意取消
+                  </p>
+                </div>
+              );
+            }
+
+            if (hasPendingCancel && isOtherTeam) {
+              const requestingTeamName =
+                cancelRequest.requestedBy === fromTeam?.id
+                  ? fromTeam.name
+                  : toTeam.name;
+              return (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-sm text-orange-600 mb-2 text-center">
+                    ⚠️ {requestingTeamName} 已請求取消此練習賽
+                  </p>
+                  <button
+                    onClick={handleConfirmCancel}
+                    disabled={cancelLoading}
+                    className="w-full px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {cancelLoading ? "處理中..." : "同意取消練習賽"}
+                  </button>
+                </div>
+              );
+            }
+
             return (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <button
-                  disabled
-                  className="w-full px-4 py-2.5 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
-                >
-                  已送出取消請求
-                </button>
-                <p className="text-xs text-gray-400 mt-1 text-center">等待對方隊伍同意取消</p>
-              </div>
-            );
-          }
-
-          if (hasPendingCancel && isOtherTeam) {
-            const requestingTeamName =
-              cancelRequest.requestedBy === fromTeam?.id ? fromTeam.name : toTeam.name;
-            return (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-orange-600 mb-2 text-center">
-                  ⚠️ {requestingTeamName} 已請求取消此練習賽
-                </p>
-                <button
-                  onClick={handleConfirmCancel}
+                  onClick={handleRequestCancel}
                   disabled={cancelLoading}
-                  className="w-full px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
-                  {cancelLoading ? "處理中..." : "同意取消練習賽"}
+                  {cancelLoading ? "處理中..." : "取消練習賽"}
                 </button>
               </div>
             );
-          }
-
-          return (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={handleRequestCancel}
-                disabled={cancelLoading}
-                className="w-full px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                {cancelLoading ? "處理中..." : "取消練習賽"}
-              </button>
-            </div>
-          );
-        })()}
+          })()}
       </div>
 
       {/* Tab 切換 */}

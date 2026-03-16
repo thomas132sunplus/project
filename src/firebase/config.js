@@ -11,12 +11,12 @@ import { getStorage } from "firebase/storage";
 // 請到 Firebase Console > 專案設定 > 一般 > 你的應用程式 > SDK 設定和配置
 // 複製配置並替換以下內容
 const firebaseConfig = {
-  apiKey: "AIzaSyBTlm59ttdCFiyvuGsrvukel8XhfxpOGg0",
-  authDomain: "edgewalker-beyond.firebaseapp.com",
-  projectId: "edgewalker-beyond",
-  storageBucket: "edgewalker-beyond.firebasestorage.app",
-  messagingSenderId: "162691315113",
-  appId: "1:162691315113:web:63a2d2583b1c006e6500b8",
+  apiKey: "AIzaSyDOV34NoOB0CF30qMtsqrbKViW8hK8gk90",
+  authDomain: "edgewalker-6c6ac.firebaseapp.com",
+  projectId: "edgewalker-6c6ac",
+  storageBucket: "edgewalker-6c6ac.appspot.com",
+  messagingSenderId: "604632381184",
+  appId: "1:604632381184:web:2b48a559958cedf18565e5",
 };
 
 // 初始化 Firebase
@@ -30,5 +30,3 @@ export const auth = getAuth(app);
 
 // 初始化 Firebase Storage（用於文件和錄音上傳）
 export const storage = getStorage(app);
-
-export default app;

@@ -3,9 +3,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useNotifications } from "../hooks/useNotifications";
-import NotificationPanel from "./NotificationPanel";
+import { NotificationPanel } from "./NotificationPanel";
 
-export default function NotificationBell() {
+export function NotificationBell() {
   const { unreadCount } = useNotifications();
   const [showPanel, setShowPanel] = useState(false);
   const panelRef = useRef(null);

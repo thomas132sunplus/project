@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registerUser, loginUser } from "../firebase/auth";
 
-export default function Auth() {
+export function Auth() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true); // true: 登入模式, false: 註冊模式
   const [loading, setLoading] = useState(false);

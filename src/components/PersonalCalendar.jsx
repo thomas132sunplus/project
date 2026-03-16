@@ -27,7 +27,7 @@ const TEAM_EVENT_COLORS = {
   other: "#6B7280",
 };
 
-export default function PersonalCalendar() {
+export function PersonalCalendar() {
   const { currentUser } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -362,7 +362,13 @@ export default function PersonalCalendar() {
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-bold text-gray-800">
               {selectedDate.getFullYear()}/{selectedDate.getMonth() + 1}/
-              {selectedDate.getDate()}（{WEEKDAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1]}）
+              {selectedDate.getDate()}（
+              {
+                WEEKDAYS[
+                  selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1
+                ]
+              }
+              ）
             </h4>
             <button
               onClick={handleAddEvent}

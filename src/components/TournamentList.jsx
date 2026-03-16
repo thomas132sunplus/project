@@ -3,9 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { getAllTournaments } from "../firebase/tournaments";
-import TournamentCard from "./TournamentCard";
+import { TournamentCard } from "./TournamentCard";
 
-export default function TournamentList() {
+export function TournamentList() {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

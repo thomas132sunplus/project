@@ -6,7 +6,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { getTournament, deleteTournament } from "../firebase/tournaments";
 import { getTeam } from "../firebase/teams";
 
-export default function TournamentDetail() {
+export function TournamentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tournament, setTournament] = useState(null);

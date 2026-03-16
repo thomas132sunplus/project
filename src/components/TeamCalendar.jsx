@@ -128,7 +128,7 @@ function parseSlots(slots) {
   return slots;
 }
 
-export default function TeamCalendar({ teamId }) {
+export function TeamCalendar({ teamId }) {
   const { currentUser } = useAuth();
 
   // 視圖
@@ -564,15 +564,15 @@ export default function TeamCalendar({ teamId }) {
       const end = new Date(weekDates[6]);
       end.setHours(23, 59, 59, 999);
       return events.filter((e) => {
-        const s = e.startTime?.toDate?.() || new Date(e.startTime);
-        return s >= weekDates[0] && s <= end;
+        const start = e.startTime?.toDate?.() || new Date(e.startTime);
+        return start >= weekDates[0] && start <= end;
       });
     }
     const ms = new Date(mYear, mMonth, 1);
     const me = new Date(mYear, mMonth + 1, 0, 23, 59, 59, 999);
     return events.filter((e) => {
-      const s = e.startTime?.toDate?.() || new Date(e.startTime);
-      return s >= ms && s <= me;
+      const start = e.startTime?.toDate?.() || new Date(e.startTime);
+      return start >= ms && start <= me;
     });
   }, [events, viewMode, weekDates, mYear, mMonth]);
 
@@ -1150,10 +1150,14 @@ export default function TeamCalendar({ teamId }) {
       {showDirectEventForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">📅 建立事件</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">
+              📅 建立事件
+            </h3>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">日期</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                日期
+              </label>
               <input
                 type="date"
                 value={directEventDate}
@@ -1164,7 +1168,9 @@ export default function TeamCalendar({ teamId }) {
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">開始時間</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  開始時間
+                </label>
                 <input
                   type="time"
                   value={directEventStart}
@@ -1173,7 +1179,9 @@ export default function TeamCalendar({ teamId }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">結束時間</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  結束時間
+                </label>
                 <input
                   type="time"
                   value={directEventEnd}
@@ -1184,10 +1192,15 @@ export default function TeamCalendar({ teamId }) {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">事件類型</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                事件類型
+              </label>
               <div className="space-y-2">
                 {EVENT_TYPES.map((t) => (
-                  <label key={t.value} className="flex items-center gap-2 cursor-pointer">
+                  <label
+                    key={t.value}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
                     <input
                       type="radio"
                       name="directEventType"
@@ -1204,7 +1217,9 @@ export default function TeamCalendar({ teamId }) {
 
             {directEventType === "custom" && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">自訂事件名稱</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  自訂事件名稱
+                </label>
                 <input
                   type="text"
                   value={directEventName}

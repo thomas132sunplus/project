@@ -46,7 +46,7 @@ const TIMER_PRESETS = [
   },
 ];
 
-function RecordingTimer({ teamId, onClose }) {
+export function RecordingTimer({ teamId, onClose }) {
   const { currentUser } = useAuth();
 
   // 錄音相關
@@ -610,5 +610,3 @@ function RecordingTimer({ teamId, onClose }) {
     </div>
   );
 }
-
-export default RecordingTimer;

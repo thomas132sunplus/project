@@ -1,51 +1,51 @@
 // DebateTimer.jsx - 辯論計時器元件
 // 支援多種賽制的計時器
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
 
 // 賽制時間設定（秒數）
 const FORMATS = {
-  'oregon-3-3-3': {
-    name: '奧瑞岡 3-3-3',
+  "oregon-3-3-3": {
+    name: "奧瑞岡 3-3-3",
     constructive: 3 * 60,
     rebuttal: 3 * 60,
-    summary: 3 * 60
+    summary: 3 * 60,
   },
-  'oregon-4-4-4': {
-    name: '奧瑞岡 4-4-4',
+  "oregon-4-4-4": {
+    name: "奧瑞岡 4-4-4",
     constructive: 4 * 60,
     rebuttal: 4 * 60,
-    summary: 4 * 60
+    summary: 4 * 60,
   },
-  'singapore': {
-    name: '新加坡賽制',
+  singapore: {
+    name: "新加坡賽制",
     constructive: 7 * 60,
     rebuttal: 4 * 60,
-    summary: 5 * 60
-  }
+    summary: 5 * 60,
+  },
 };
 
 // 辯論階段順序
 const PHASES = [
-  { id: 'aff-c1', label: '正方一辯立論', type: 'constructive', side: 'aff' },
-  { id: 'neg-c1', label: '反方一辯立論', type: 'constructive', side: 'neg' },
-  { id: 'aff-c2', label: '正方二辯立論', type: 'constructive', side: 'aff' },
-  { id: 'neg-c2', label: '反方二辯立論', type: 'constructive', side: 'neg' },
-  { id: 'neg-r1', label: '反方一辯質詢', type: 'rebuttal', side: 'neg' },
-  { id: 'aff-r1', label: '正方一辯質詢', type: 'rebuttal', side: 'aff' },
-  { id: 'neg-r2', label: '反方二辯質詢', type: 'rebuttal', side: 'neg' },
-  { id: 'aff-r2', label: '正方二辯質詢', type: 'rebuttal', side: 'aff' },
-  { id: 'aff-s1', label: '正方一辯總結', type: 'summary', side: 'aff' },
-  { id: 'neg-s1', label: '反方一辯總結', type: 'summary', side: 'neg' },
+  { id: "aff-c1", label: "正方一辯立論", type: "constructive", side: "aff" },
+  { id: "neg-c1", label: "反方一辯立論", type: "constructive", side: "neg" },
+  { id: "aff-c2", label: "正方二辯立論", type: "constructive", side: "aff" },
+  { id: "neg-c2", label: "反方二辯立論", type: "constructive", side: "neg" },
+  { id: "neg-r1", label: "反方一辯質詢", type: "rebuttal", side: "neg" },
+  { id: "aff-r1", label: "正方一辯質詢", type: "rebuttal", side: "aff" },
+  { id: "neg-r2", label: "反方二辯質詢", type: "rebuttal", side: "neg" },
+  { id: "aff-r2", label: "正方二辯質詢", type: "rebuttal", side: "aff" },
+  { id: "aff-s1", label: "正方一辯總結", type: "summary", side: "aff" },
+  { id: "neg-s1", label: "反方一辯總結", type: "summary", side: "neg" },
 ];
 
-export default function DebateTimer({ format = 'oregon-3-3-3' }) {
+export function DebateTimer({ format = "oregon-3-3-3" }) {
   const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
 
-  const formatConfig = FORMATS[format] || FORMATS['oregon-3-3-3'];
+  const formatConfig = FORMATS[format] || FORMATS["oregon-3-3-3"];
   const currentPhase = PHASES[currentPhaseIndex];
   const phaseTime = formatConfig[currentPhase.type];
 
@@ -85,7 +85,7 @@ export default function DebateTimer({ format = 'oregon-3-3-3' }) {
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   // 開始/暫停
@@ -121,24 +121,30 @@ export default function DebateTimer({ format = 'oregon-3-3-3' }) {
   return (
     <div>
       {/* 大型計時器顯示 */}
-      <div className={`rounded-lg p-8 mb-6 text-center ${
-        currentPhase.side === 'aff' 
-          ? 'bg-blue-100 border-4 border-blue-400' 
-          : 'bg-red-100 border-4 border-red-400'
-      }`}>
-        <h2 className={`text-2xl font-bold mb-4 ${
-          currentPhase.side === 'aff' ? 'text-blue-800' : 'text-red-800'
-        }`}>
+      <div
+        className={`rounded-lg p-8 mb-6 text-center ${
+          currentPhase.side === "aff"
+            ? "bg-blue-100 border-4 border-blue-400"
+            : "bg-red-100 border-4 border-red-400"
+        }`}
+      >
+        <h2
+          className={`text-2xl font-bold mb-4 ${
+            currentPhase.side === "aff" ? "text-blue-800" : "text-red-800"
+          }`}
+        >
           {currentPhase.label}
         </h2>
-        
-        <div className={`text-8xl font-mono font-bold mb-6 ${
-          timeRemaining <= 30 && timeRemaining > 0 
-            ? 'text-red-600 animate-pulse' 
-            : currentPhase.side === 'aff' 
-              ? 'text-blue-700' 
-              : 'text-red-700'
-        }`}>
+
+        <div
+          className={`text-8xl font-mono font-bold mb-6 ${
+            timeRemaining <= 30 && timeRemaining > 0
+              ? "text-red-600 animate-pulse"
+              : currentPhase.side === "aff"
+                ? "text-blue-700"
+                : "text-red-700"
+          }`}
+        >
           {formatTime(timeRemaining)}
         </div>
 
@@ -148,13 +154,13 @@ export default function DebateTimer({ format = 'oregon-3-3-3' }) {
             onClick={toggleTimer}
             className={`px-8 py-4 rounded-lg font-bold text-xl transition ${
               isRunning
-                ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                : 'bg-green-600 hover:bg-green-700 text-white'
+                ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                : "bg-green-600 hover:bg-green-700 text-white"
             }`}
           >
-            {isRunning ? '⏸ 暫停' : '▶️ 開始'}
+            {isRunning ? "⏸ 暫停" : "▶️ 開始"}
           </button>
-          
+
           <button
             onClick={resetPhase}
             className="px-8 py-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold text-xl transition"
@@ -175,11 +181,11 @@ export default function DebateTimer({ format = 'oregon-3-3-3' }) {
           >
             ← 上一階段
           </button>
-          
+
           <span className="px-4 py-2 bg-gray-100 rounded text-gray-700 font-semibold">
             {currentPhaseIndex + 1} / {PHASES.length}
           </span>
-          
+
           <button
             onClick={nextPhase}
             disabled={currentPhaseIndex === PHASES.length - 1}
@@ -197,10 +203,10 @@ export default function DebateTimer({ format = 'oregon-3-3-3' }) {
               onClick={() => jumpToPhase(index)}
               className={`px-3 py-2 rounded text-sm font-medium transition ${
                 index === currentPhaseIndex
-                  ? phase.side === 'aff'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-red-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? phase.side === "aff"
+                    ? "bg-blue-600 text-white"
+                    : "bg-red-600 text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
               }`}
             >
               {phase.label}
@@ -211,7 +217,9 @@ export default function DebateTimer({ format = 'oregon-3-3-3' }) {
 
       {/* 賽制資訊 */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="font-semibold text-gray-800 mb-2">賽制：{formatConfig.name}</h4>
+        <h4 className="font-semibold text-gray-800 mb-2">
+          賽制：{formatConfig.name}
+        </h4>
         <div className="text-sm text-gray-600 space-y-1">
           <p>立論：{formatConfig.constructive / 60} 分鐘</p>
           <p>質詢：{formatConfig.rebuttal / 60} 分鐘</p>

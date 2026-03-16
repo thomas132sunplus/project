@@ -5,9 +5,9 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { logoutUser } from "../firebase/auth";
-import NotificationBell from "./NotificationBell";
+import { NotificationBell } from "./NotificationBell";
 
-export default function Navbar() {
+export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser } = useAuth();

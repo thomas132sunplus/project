@@ -1,11 +1,11 @@
 // 活動列表頁元件
 // 顯示所有活動的卡片列表
 
-import { useState, useEffect } from 'react';
-import { getAllActivities } from '../firebase/activities';
-import ActivityCard from './ActivityCard';
+import { useState, useEffect } from "react";
+import { getAllActivities } from "../firebase/activities";
+import { ActivityCard } from "./ActivityCard";
 
-export default function ActivityList() {
+export function ActivityList() {
   // 狀態：活動列表
   const [activities, setActivities] = useState([]);
   // 狀態：載入中
@@ -26,8 +26,8 @@ export default function ActivityList() {
       setActivities(data);
       setError(null);
     } catch (err) {
-      console.error('載入活動失敗：', err);
-      setError('無法載入活動列表，請稍後再試');
+      console.error("載入活動失敗：", err);
+      setError("無法載入活動列表，請稍後再試");
     } finally {
       setLoading(false);
     }
@@ -72,8 +72,8 @@ export default function ActivityList() {
         // 沒有活動時的顯示
         <div className="text-center py-16">
           <p className="text-gray-500 text-lg mb-4">目前沒有任何活動</p>
-          <a 
-            href="/create" 
+          <a
+            href="/create"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
           >
             建立第一個活動

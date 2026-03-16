@@ -3,9 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import DebateTimer from "./DebateTimer";
+import { DebateTimer } from "./DebateTimer";
 
-export default function MatchRoom() {
+export function MatchRoom() {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState("timer"); // timer, participants, recordings, files, judges
   const [matchFormat, setMatchFormat] = useState("oregon-3-3-3");

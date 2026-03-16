@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { getUserTeams, createTeam } from "../firebase/teams";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function MyTeams() {
+export function MyTeams() {
   const { currentUser } = useAuth();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -3,9 +3,9 @@
 
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "../hooks/useNotifications";
-import NotificationItem from "./NotificationItem";
+import { NotificationItem } from "./NotificationItem";
 
-export default function NotificationPanel({ onClose }) {
+export function NotificationPanel({ onClose }) {
   const navigate = useNavigate();
   const {
     notifications,

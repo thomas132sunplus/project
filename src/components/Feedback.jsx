@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { submitFeedback } from "../firebase/feedback";
 
-export default function Feedback() {
+export function Feedback() {
   const { currentUser } = useAuth();
   const [feedbackType, setFeedbackType] = useState("suggestion"); // suggestion, bug, other
   const [title, setTitle] = useState("");

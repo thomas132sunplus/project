@@ -1,14 +1,14 @@
 // 活動詳細頁元件
 // 顯示單一活動的完整資訊
 
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getActivityById } from '../firebase/activities';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { getActivityById } from "../firebase/activities";
 
-export default function ActivityDetail() {
+export function ActivityDetail() {
   const { id } = useParams(); // 從網址取得活動 ID
   const navigate = useNavigate(); // 用於頁面導航
-  
+
   // 狀態
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,8 +27,8 @@ export default function ActivityDetail() {
       setActivity(data);
       setError(null);
     } catch (err) {
-      console.error('載入活動詳細資訊失敗：', err);
-      setError('找不到此活動');
+      console.error("載入活動詳細資訊失敗：", err);
+      setError("找不到此活動");
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export default function ActivityDetail() {
           {error}
         </div>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           返回活動列表
@@ -62,21 +62,31 @@ export default function ActivityDetail() {
 
   // 活動類型對應的顏色
   const typeColors = {
-    '比賽': 'bg-red-100 text-red-800',
-    '練習賽': 'bg-blue-100 text-blue-800',
-    '社內討論': 'bg-green-100 text-green-800',
-    '跨校': 'bg-purple-100 text-purple-800'
+    比賽: "bg-red-100 text-red-800",
+    練習賽: "bg-blue-100 text-blue-800",
+    社內討論: "bg-green-100 text-green-800",
+    跨校: "bg-purple-100 text-purple-800",
   };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* 返回按鈕 */}
       <button
-        onClick={() => navigate('/')}
+        onClick={() => navigate("/")}
         className="mb-6 text-blue-600 hover:text-blue-800 flex items-center gap-2"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
         返回活動列表
       </button>
@@ -90,7 +100,9 @@ export default function ActivityDetail() {
 
         {/* 活動類型標籤 */}
         <div className="mb-6">
-          <span className={`px-4 py-2 rounded-full text-sm font-medium ${typeColors[activity.type] || 'bg-gray-100 text-gray-800'}`}>
+          <span
+            className={`px-4 py-2 rounded-full text-sm font-medium ${typeColors[activity.type] || "bg-gray-100 text-gray-800"}`}
+          >
             {activity.type}
           </span>
         </div>
@@ -99,8 +111,18 @@ export default function ActivityDetail() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* 日期 */}
           <div className="flex items-start gap-3">
-            <svg className="w-6 h-6 text-blue-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <svg
+              className="w-6 h-6 text-blue-600 mt-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
             <div>
               <div className="font-semibold text-gray-700">日期</div>
@@ -111,8 +133,18 @@ export default function ActivityDetail() {
           {/* 時間 */}
           {activity.time && (
             <div className="flex items-start gap-3">
-              <svg className="w-6 h-6 text-blue-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-6 h-6 text-blue-600 mt-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <div>
                 <div className="font-semibold text-gray-700">時間</div>
@@ -124,8 +156,18 @@ export default function ActivityDetail() {
           {/* 賽制 */}
           {activity.format && (
             <div className="flex items-start gap-3">
-              <svg className="w-6 h-6 text-blue-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-6 h-6 text-blue-600 mt-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
               <div>
                 <div className="font-semibold text-gray-700">賽制</div>
@@ -163,10 +205,22 @@ export default function ActivityDetail() {
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-gray-800">LINE 群組</div>
-                    <div className="text-sm text-gray-600 truncate">{activity.links.line}</div>
+                    <div className="text-sm text-gray-600 truncate">
+                      {activity.links.line}
+                    </div>
                   </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  <svg
+                    className="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
                   </svg>
                 </a>
               )}
@@ -183,11 +237,25 @@ export default function ActivityDetail() {
                     D
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold text-gray-800">Discord 頻道</div>
-                    <div className="text-sm text-gray-600 truncate">{activity.links.discord}</div>
+                    <div className="font-semibold text-gray-800">
+                      Discord 頻道
+                    </div>
+                    <div className="text-sm text-gray-600 truncate">
+                      {activity.links.discord}
+                    </div>
                   </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  <svg
+                    className="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
                   </svg>
                 </a>
               )}
@@ -205,10 +273,22 @@ export default function ActivityDetail() {
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-gray-800">視訊會議</div>
-                    <div className="text-sm text-gray-600 truncate">{activity.links.meeting}</div>
+                    <div className="text-sm text-gray-600 truncate">
+                      {activity.links.meeting}
+                    </div>
                   </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  <svg
+                    className="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
                   </svg>
                 </a>
               )}

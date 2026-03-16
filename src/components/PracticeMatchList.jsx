@@ -19,7 +19,7 @@ import {
   notifyMatchExpired,
 } from "../firebase/notificationHelpers";
 
-export default function PracticeMatchList() {
+export function PracticeMatchList() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [myTeams, setMyTeams] = useState([]);

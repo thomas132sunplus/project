@@ -6,9 +6,9 @@ import { getUser, updateUser, createOrUpdateUser } from "../firebase/users";
 import { getUserTeams } from "../firebase/teams";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import PersonalCalendar from "./PersonalCalendar";
+import { PersonalCalendar } from "./PersonalCalendar";
 
-export default function UserProfile() {
+export function UserProfile() {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("teams"); // teams, calendar
   const [userData, setUserData] = useState(null);

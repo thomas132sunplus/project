@@ -2,7 +2,12 @@
 // 包含聊天、資料區、日曆、練習賽邀請等功能
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
+import {
+  useParams,
+  Link,
+  useSearchParams,
+  useNavigate,
+} from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getTeam,
@@ -31,10 +36,10 @@ import {
   updateTeamEvent,
   subscribeToTeamEvents,
 } from "../firebase/teamEvents";
-import TeamCalendar from "./TeamCalendar";
+import { TeamCalendar } from "./TeamCalendar";
 import { notifyTeamMemberAdded } from "../firebase/notificationHelpers";
 
-export default function TeamDiscussion() {
+export function TeamDiscussion() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
@@ -43,7 +48,9 @@ export default function TeamDiscussion() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get("tab");
-    return ["chat", "calendar", "invitations", "members"].includes(tab) ? tab : "chat";
+    return ["chat", "calendar", "invitations", "members"].includes(tab)
+      ? tab
+      : "chat";
   });
 
   useEffect(() => {

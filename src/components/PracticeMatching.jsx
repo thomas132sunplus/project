@@ -12,7 +12,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { getUserTeams } from "../firebase/teams";
 import { Link } from "react-router-dom";
 
-export default function PracticeMatching() {
+export function PracticeMatching() {
   const { currentUser } = useAuth();
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState(null);

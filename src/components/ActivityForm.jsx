@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createActivity } from "../firebase/activities";
 
-export default function ActivityForm() {
+export function ActivityForm() {
   const navigate = useNavigate();
 
   // 表單狀態

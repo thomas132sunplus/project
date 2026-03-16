@@ -11,7 +11,7 @@ import {
 import { getAllTeams } from "../firebase/teams";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function TournamentForm() {
+export function TournamentForm() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();

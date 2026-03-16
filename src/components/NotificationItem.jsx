@@ -6,7 +6,7 @@ import { NOTIFICATION_CONFIG } from "../firebase/notifications";
 import { formatDistanceToNow } from "date-fns";
 import { zhTW } from "date-fns/locale";
 
-export default function NotificationItem({ notification, onClick }) {
+export function NotificationItem({ notification, onClick }) {
   const { markAsRead, deleteNotification } = useNotifications();
 
   const config = NOTIFICATION_CONFIG[notification.type] || {

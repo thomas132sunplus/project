@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { getAllFeedback } from "../firebase/feedback";
 
-export default function FeedbackList() {
+export function FeedbackList() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all, suggestion, bug, other

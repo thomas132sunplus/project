@@ -12,7 +12,7 @@ const VALID_INVITE_CODES = [
   "ADMIN-2026",
 ];
 
-export default function InviteCodeGate({ children }) {
+export function InviteCodeGate({ children }) {
   const [isVerified, setIsVerified] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");

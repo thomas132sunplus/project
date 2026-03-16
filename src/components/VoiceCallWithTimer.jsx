@@ -90,7 +90,11 @@ const TIMER_PRESETS = [
   },
 ];
 
-function VoiceCallWithTimer({ teamId, onClose, recordingType = "team" }) {
+export function VoiceCallWithTimer({
+  teamId,
+  onClose,
+  recordingType = "team",
+}) {
   const { currentUser } = useAuth();
 
   // 會議室狀態
@@ -1947,5 +1951,3 @@ function VoiceCallWithTimer({ teamId, onClose, recordingType = "team" }) {
     </div>
   );
 }
-
-export default VoiceCallWithTimer;

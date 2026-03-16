@@ -599,16 +599,12 @@ export function TeamCalendar({ teamId }) {
         <div className="flex bg-gray-100 rounded-lg p-0.5">
           <button
             onClick={() => setViewMode("week")}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "week" ? "bg-white shadow text-blue-600" : "text-gray-600 hover:text-gray-800"}`}
-          >
-            週曆
-          </button>
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "week" ? "bg-blue-600 text-white" : "bg-white text-blue-700 border border-blue-600"}`}
+          >週曆</button>
           <button
             onClick={() => setViewMode("month")}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "month" ? "bg-white shadow text-blue-600" : "text-gray-600 hover:text-gray-800"}`}
-          >
-            月曆
-          </button>
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "month" ? "bg-blue-600 text-white" : "bg-white text-blue-700 border border-blue-600"}`}
+          >月曆</button>
         </div>
       </div>
 

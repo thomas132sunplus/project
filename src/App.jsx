@@ -92,6 +92,7 @@ export function AppRoutes() {
 
   // 關閉彈窗但不送出，並跳轉到 /teams
   const handleSurveyClose = () => {
+    localStorage.setItem("meetingRoomSurveyDone", "1");
     setShowSurvey(false);
     setSurveyChecked(true);
     navigate("/teams", { replace: true });

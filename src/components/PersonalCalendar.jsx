@@ -30,6 +30,25 @@ const TEAM_EVENT_COLORS = {
 export function PersonalCalendar() {
   const { currentUser } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
+  // 新增 viewMode 狀態
+  const [viewMode, setViewMode] = useState("month"); // "month" | "week"
+  // 週曆：取得本週一的日期
+  function getMonday(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - ((day === 0 ? 7 : day) - 1);
+    return new Date(d.setDate(diff));
+  }
+
+  // 週曆：取得本週 7 天日期陣列
+  const weekDates = useMemo(() => {
+    const monday = getMonday(currentDate);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
+  }, [currentDate]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [personalEvents, setPersonalEvents] = useState([]);
   const [teamEvents, setTeamEvents] = useState([]);
@@ -231,31 +250,81 @@ export function PersonalCalendar() {
     <div>
       <h2 className="text-xl font-bold text-gray-800 mb-4">個人日曆</h2>
 
-      {/* 月份導航 */}
+      {/* 切換按鈕與導航 */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <button
-            onClick={prevMonth}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
+            onClick={() => setViewMode("week")}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "week" ? "bg-blue-600 text-white" : "bg-white text-blue-700 border border-blue-600"}`}
           >
-            ◀
+            週曆
           </button>
-          <h3 className="text-lg font-bold text-gray-800 min-w-[140px] text-center">
-            {year} 年 {month + 1} 月
-          </h3>
           <button
-            onClick={nextMonth}
-            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
+            onClick={() => setViewMode("month")}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "month" ? "bg-blue-600 text-white" : "bg-white text-blue-700 border border-blue-600"}`}
           >
-            ▶
+            月曆
           </button>
         </div>
-        <button
-          onClick={goToday}
-          className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
-        >
-          今天
-        </button>
+        {viewMode === "month" ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={prevMonth}
+              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
+            >
+              ◀
+            </button>
+            <h3 className="text-lg font-bold text-gray-800 min-w-[140px] text-center">
+              {year} 年 {month + 1} 月
+            </h3>
+            <button
+              onClick={nextMonth}
+              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
+            >
+              ▶
+            </button>
+            <button
+              onClick={goToday}
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
+            >
+              今天
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() =>
+                setCurrentDate(
+                  new Date(currentDate.setDate(currentDate.getDate() - 7)),
+                )
+              }
+              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
+            >
+              ← 上週
+            </button>
+            <h3 className="text-lg font-bold text-gray-800 min-w-[140px] text-center">
+              {weekDates[0].getFullYear()} 年 {weekDates[0].getMonth() + 1} 月{" "}
+              {weekDates[0].getDate()} 日 - {weekDates[6].getMonth() + 1} 月{" "}
+              {weekDates[6].getDate()} 日
+            </h3>
+            <button
+              onClick={() =>
+                setCurrentDate(
+                  new Date(currentDate.setDate(currentDate.getDate() + 7)),
+                )
+              }
+              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition"
+            >
+              下週 →
+            </button>
+            <button
+              onClick={() => setCurrentDate(new Date())}
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
+            >
+              本週
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 圖例 */}
@@ -286,75 +355,116 @@ export function PersonalCalendar() {
         </span>
       </div>
 
-      {/* 月曆格子 */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {/* 星期標頭 */}
-        <div className="grid grid-cols-7 bg-gray-100">
-          {WEEKDAYS.map((day) => (
-            <div
-              key={day}
-              className="py-2 text-center text-sm font-medium text-gray-600"
-            >
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* 日期格子 */}
-        <div className="grid grid-cols-7">
-          {calendarDays.map((dayInfo, idx) => {
-            const key = toDateKey(dayInfo.date);
-            const dayEvents = eventsByDate[key] || [];
-            const isToday = key === todayKey;
-            const isSelected = key === selectedKey;
-
-            return (
+      {/* 日曆格子 */}
+      {viewMode === "month" ? (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {/* 星期標頭 */}
+          <div className="grid grid-cols-7 bg-gray-100">
+            {WEEKDAYS.map((day) => (
               <div
-                key={idx}
-                onClick={() => handleDayClick(dayInfo)}
-                className={`min-h-[50px] md:min-h-[80px] p-0.5 md:p-1 border-t border-r border-gray-100 cursor-pointer transition hover:bg-blue-50 ${
-                  !dayInfo.currentMonth ? "bg-gray-50" : ""
-                } ${isSelected ? "bg-blue-100 ring-2 ring-blue-400 ring-inset" : ""}`}
+                key={day}
+                className="py-2 text-center text-sm font-medium text-gray-600"
               >
+                {day}
+              </div>
+            ))}
+          </div>
+          {/* 日期格子 */}
+          <div className="grid grid-cols-7">
+            {calendarDays.map((dayInfo, idx) => {
+              const key = toDateKey(dayInfo.date);
+              const dayEvents = eventsByDate[key] || [];
+              const isToday = key === todayKey;
+              const isSelected = key === selectedKey;
+              return (
                 <div
-                  className={`text-xs md:text-sm mb-0.5 md:mb-1 ${
-                    !dayInfo.currentMonth ? "text-gray-300" : "text-gray-700"
-                  } ${isToday ? "bg-blue-600 text-white w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center font-bold text-[10px] md:text-sm" : ""}`}
+                  key={idx}
+                  className={`min-h-[80px] p-1.5 border-b border-r border-gray-200 cursor-pointer hover:bg-blue-50 transition ${isToday ? "bg-blue-50 ring-2 ring-inset ring-blue-400" : ""}`}
+                  onClick={() => setSelectedDate(dayInfo.date)}
                 >
-                  {dayInfo.day}
-                </div>
-                {/* 事件圓點（最多顯示 3 個） */}
-                <div className="flex flex-wrap gap-0.5">
-                  {dayEvents.slice(0, 3).map((ev, i) => (
-                    <span
-                      key={i}
-                      className="w-2 h-2 rounded-full inline-block"
-                      style={{ backgroundColor: getEventColor(ev) }}
-                      title={ev.title}
-                    ></span>
-                  ))}
-                  {dayEvents.length > 3 && (
-                    <span className="text-[10px] text-gray-400">
-                      +{dayEvents.length - 3}
-                    </span>
+                  <div
+                    className={`text-xs font-medium mb-1 ${isToday ? "text-blue-600" : "text-gray-700"}`}
+                  >
+                    {dayInfo.day}
+                  </div>
+                  {/* 當日事件顯示，可自行擴充 */}
+                  {dayEvents.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {dayEvents.slice(0, 2).map((evt, i) => (
+                        <div
+                          key={i}
+                          className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                        >
+                          {evt.title}
+                        </div>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <div className="text-xs text-gray-400">
+                          +{dayEvents.length - 2} 更多
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                {/* 小字事件名（桌面版顯示第一個） */}
-                {dayEvents.length > 0 && dayInfo.currentMonth && (
-                  <div className="hidden md:block mt-0.5">
-                    <div
-                      className="text-[10px] text-gray-600 truncate"
-                      style={{ color: getEventColor(dayEvents[0]) }}
-                    >
-                      {dayEvents[0].title}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {/* 星期標頭 */}
+          <div className="grid grid-cols-7 bg-gray-100">
+            {WEEKDAYS.map((day) => (
+              <div
+                key={day}
+                className="py-2 text-center text-sm font-medium text-gray-600"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+          {/* 週曆格子 */}
+          <div className="grid grid-cols-7">
+            {weekDates.map((date, idx) => {
+              const key = toDateKey(date);
+              const dayEvents = eventsByDate[key] || [];
+              const isToday = key === todayKey;
+              const isSelected = key === selectedKey;
+              return (
+                <div
+                  key={idx}
+                  className={`min-h-[80px] p-1.5 border-b border-r border-gray-200 cursor-pointer hover:bg-blue-50 transition ${isToday ? "bg-blue-50 ring-2 ring-inset ring-blue-400" : ""}`}
+                  onClick={() => setSelectedDate(date)}
+                >
+                  <div
+                    className={`text-xs font-medium mb-1 ${isToday ? "text-blue-600" : "text-gray-700"}`}
+                  >
+                    {date.getDate()}
+                  </div>
+                  {/* 當日事件顯示，可自行擴充 */}
+                  {dayEvents.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {dayEvents.slice(0, 2).map((evt, i) => (
+                        <div
+                          key={i}
+                          className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                        >
+                          {evt.title}
+                        </div>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <div className="text-xs text-gray-400">
+                          +{dayEvents.length - 2} 更多
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 選中日期的事件列表 */}
       {selectedDate && (

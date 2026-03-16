@@ -30,11 +30,15 @@ export function MeetingRoomSurveyModal({ onClose, onSubmit }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
         <button
-          className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl"
+          className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl w-10 h-10 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style={{ touchAction: "manipulation", pointerEvents: "auto" }}
           onClick={neverShow ? handleNeverShow : onClose}
           aria-label="關閉"
+          tabIndex={0}
         >
-          ×
+          <span className="block w-full h-full flex items-center justify-center">
+            ×
+          </span>
         </button>
         <h2 className="text-xl font-bold mb-2">會議室功能意願調查</h2>
         <p className="mb-4 text-gray-700">

@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "edgewalker-6c6ac"
-  }
+  },
+  "targets": {
+    "edgewalker-6c6ac": {
+      "hosting": {
+        "edgewalker-6c6ac": [
+          "edgewalker-6c6ac"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

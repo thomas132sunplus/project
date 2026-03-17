@@ -59,6 +59,7 @@ export function AppRoutes() {
 
   // 只彈一次：localStorage 控制
   useEffect(() => {
+<<<<<<< HEAD
     if (currentUser) {
       const surveyDone = localStorage.getItem("meetingRoomSurveyDone");
       if (!surveyDone) {
@@ -68,6 +69,16 @@ export function AppRoutes() {
         }
         setShowSurvey(true);
       }
+=======
+    console.log("[DEBUG] currentUser:", currentUser);
+    console.log("[DEBUG] surveyChecked:", surveyChecked);
+    console.log("[DEBUG] showSurvey:", showSurvey);
+  }, [currentUser, surveyChecked, showSurvey]);
+
+  useEffect(() => {
+    if (currentUser && location.pathname === "/") {
+      navigate("/teams", { replace: true });
+>>>>>>> 5a13f53 (feat: 首頁預設導向我的隊伍、同步正式與測試站、firebase 多站點設定修正)
     }
   }, [currentUser, location.pathname, navigate]);
 
@@ -87,7 +98,6 @@ export function AppRoutes() {
     } catch (e) {
       // 可加錯誤提示
     }
-    setShowSurvey(false);
     setSurveyChecked(true);
   };
 
@@ -123,7 +133,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<MyTeams />} />
+        <Route index element={<Navigate to="/teams" replace />} />
         <Route path="teams" element={<MyTeams />} />
         <Route path="team/:id" element={<TeamDiscussion />} />
         <Route path="practice-matching" element={<PracticeMatching />} />

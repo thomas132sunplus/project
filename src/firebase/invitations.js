@@ -1,3 +1,34 @@
+/**
+ * 取消同批其他邀請（同一 fromTeam, tournamentId, practiceTime，排除已接受的 invitationId）
+ * @param {string} fromTeam - 發起隊伍 ID
+ * @param {string} tournamentId - 盃賽 ID
+ * @param {string} practiceTime - 練習賽時間
+ * @param {string} acceptedInvitationId - 已接受的邀請 ID
+ * @returns {Promise<void>}
+ */
+export async function cancelOtherInvitations(fromTeam, tournamentId, practiceTime, acceptedInvitationId) {
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where("fromTeam", "==", fromTeam),
+      where("tournamentId", "==", tournamentId),
+      where("practiceTime", "==", practiceTime),
+      where("status", "==", "pending")
+    );
+    const querySnapshot = await getDocs(q);
+    const batch = [];
+    querySnapshot.forEach((docSnap) => {
+      if (docSnap.id !== acceptedInvitationId) {
+        batch.push(updateDoc(doc(db, COLLECTION_NAME, docSnap.id), { status: "cancelled", respondedAt: serverTimestamp() }));
+      }
+    });
+    await Promise.all(batch);
+    console.log(`已自動取消 ${batch.length} 筆其他邀請`);
+  } catch (error) {
+    console.error("自動取消其他邀請失敗:", error);
+    throw error;
+  }
+}
 // invitations.js - 練習賽邀請相關的 Firestore 操作
 
 import { db } from "./config";

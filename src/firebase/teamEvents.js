@@ -102,10 +102,15 @@ export async function getTeamEvents(teamId, startDate = null, endDate = null) {
   q = query(q, orderBy("startTime", "asc"));
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    // 強制補上 teamId 欄位
+    return {
+      id: doc.id,
+      ...data,
+      teamId: data.teamId || teamId,
+    };
+  });
 }
 
 /**

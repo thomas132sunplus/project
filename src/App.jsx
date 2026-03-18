@@ -20,7 +20,7 @@ import { db } from "./firebase/config";
 import {
   collection,
   query,
-  where,
+  // 已移除 MeetingRoomSurveyModal 相關功能
   getDocs,
   addDoc,
   serverTimestamp,
@@ -59,26 +59,8 @@ export function AppRoutes() {
 
   // 只彈一次：localStorage 控制
   useEffect(() => {
-<<<<<<< HEAD
-    if (currentUser) {
-      const surveyDone = localStorage.getItem("meetingRoomSurveyDone");
-      if (!surveyDone) {
-        // 只要登入且沒回覆過，進站自動跳 feedback 並彈窗
-        if (location.pathname !== "/feedback") {
-          navigate("/feedback", { replace: true });
-        }
-        setShowSurvey(true);
-      }
-=======
-    console.log("[DEBUG] currentUser:", currentUser);
-    console.log("[DEBUG] surveyChecked:", surveyChecked);
-    console.log("[DEBUG] showSurvey:", showSurvey);
-  }, [currentUser, surveyChecked, showSurvey]);
-
-  useEffect(() => {
     if (currentUser && location.pathname === "/") {
       navigate("/teams", { replace: true });
->>>>>>> 5a13f53 (feat: 首頁預設導向我的隊伍、同步正式與測試站、firebase 多站點設定修正)
     }
   }, [currentUser, location.pathname, navigate]);
 

@@ -1,7 +1,5 @@
-// PracticeMatching.jsx - 跨校練習賽媒合頁面
-// 選擇盃賽 -> 查看參賽隊伍 -> 邀請對戰
-
 import { useState, useEffect } from "react";
+import { getTeamEvents } from "../firebase/teamEvents";
 import { getAllTournaments } from "../firebase/tournaments";
 import { getTeam } from "../firebase/teams";
 import {
@@ -13,21 +11,144 @@ import { getUserTeams } from "../firebase/teams";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export function PracticeMatching() {
-  const { currentUser } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
+  // ...existing useState...
+  // 切換候選隊伍勾選狀態
+  const toggleBatchInviteCandidate = (teamId) => {
+    setBatchInviteCandidates(prev => {
+      const next = prev.map(item =>
+        item.team.id === teamId ? { ...item, checked: !item.checked } : { ...item }
+      );
+      console.log('toggleBatchInviteCandidate', teamId, next.map(i => ({ id: i.team.id, checked: i.checked })));
+      return next;
+    });
+  };
+  // 批次確認發送邀請
+  const handleConfirmBatchInvite = async () => {
+    // 自動選用唯一一支我的隊伍，或取第一支
+    const myTeam = selectedMyTeam || (myTeams.length > 0 ? myTeams[0] : null);
+    if (!myTeam) {
+      alert("你沒有可用的隊伍");
+      return;
+    }
+    const selectedCandidates = batchInviteCandidates.filter(item => item.checked);
+    if (selectedCandidates.length === 0) {
+      alert("請至少選擇一個對手");
+      return;
+    }
+    let count = 0;
+    for (const item of selectedCandidates) {
+      for (const overlapTime of item.overlapTimes) {
+        await createInvitation({
+          fromTeam: myTeam.id,
+          toTeam: item.team.id,
+          tournamentId: selectedTournament.id,
+          practiceTime: overlapTime,
+        });
+        count++;
+      }
+    }
+    alert(`已同時發送邀請給 ${count} 組隊伍/時間！`);
+    setBatchInviteCandidates([]);
+    setSelectedPracticeTimes([]);
+  };
+        // 批次邀請按鈕：根據選擇的練習賽時間，自動找出有重疊的隊伍
+  // 取得毫秒 timestamp
+  const getTime = (val) => {
+    if (!val) return null;
+    if (typeof val === "object" && typeof val.toDate === "function") {
+      return val.toDate().getTime();
+    }
+    if (typeof val === "string" || typeof val === "number") {
+      const d = new Date(val);
+      return isNaN(d) ? null : d.getTime();
+    }
+    return null;
+  };
+
+  const handleBatchInviteClick = () => {
+    if (!selectedPracticeTimes.length) return;
+    const selectedTimes = selectedPracticeTimes.map(getTime);
+    setBatchInviteCandidates(prev => {
+      const prevCheckedMap = new Map(prev.map(item => [item.team.id, item.checked]));
+      const candidates = teams
+        .map(team => {
+          const overlapTimes = practiceEvents
+            .filter(event => event.teamId === team.id && selectedTimes.includes(getTime(event.startTime)))
+            .map(event => event.startTime);
+          return {
+            team,
+            checked: prevCheckedMap.has(team.id)
+              ? prevCheckedMap.get(team.id)
+              : overlapTimes.length > 0,
+            overlapTimes,
+          };
+        })
+        .filter(item => item.overlapTimes.length > 0);
+      return candidates;
+    });
+  };
+      const [loadingTeams, setLoadingTeams] = useState(false);
+    // 點擊盃賽時載入隊伍
+    const handleSelectTournament = async (tournament) => {
+      setSelectedTournament(tournament);
+      setLoading(true);
+      const teamIds = tournament.participatingTeams || [];
+      const teamPromises = teamIds.map((id) => getTeam(id));
+      const teamsData = await Promise.all(teamPromises);
+      setTeams(teamsData);
+
+      // 取得所有隊伍的練習賽事件
+      let allEvents = [];
+      for (const team of teamsData) {
+        const events = await getTeamEvents(team.id);
+        allEvents = allEvents.concat(events);
+      }
+      setPracticeEvents(allEvents);
+
+      setLoading(false);
+    };
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournament, setSelectedTournament] = useState(null);
+  const [myTeams, setMyTeams] = useState([]);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingTeams, setLoadingTeams] = useState(false);
-  const [myTeams, setMyTeams] = useState([]);
+  const [invitationsMap, setInvitationsMap] = useState(new Map());
   const [selectedMyTeam, setSelectedMyTeam] = useState(null);
   const [showTeamSelector, setShowTeamSelector] = useState(false);
   const [targetTeamForInvite, setTargetTeamForInvite] = useState(null);
-  const [invitationsMap, setInvitationsMap] = useState(new Map());
-  // 編輯模式
-  const [editTournamentId, setEditTournamentId] = useState(null);
+  // 狀態宣告區（順序很重要）
+  // 不再用 showBatchInvite 彈窗，直接在主畫面顯示
+  // 暫存多隊伍選擇時已勾選的隊伍
+  const [pendingBatchInviteTeams, setPendingBatchInviteTeams] = useState([]);
+  const [batchInviteCandidates, setBatchInviteCandidates] = useState([]); // {team, checked}
+  const [practiceEvents, setPracticeEvents] = useState([]); // {id, startTime, ...}
+  const [excludedEventIds, setExcludedEventIds] = useState([]); // 不參與媒合的事件 id
+  const [selectedPracticeTimes, setSelectedPracticeTimes] = useState([]); // 目前複選的練習賽時間（陣列）
+  const loadInvitationStatus = async (tournamentId) => {
+    try {
+      const newInvitationsMap = new Map();
+      // 對每個我的隊伍，獲取發出的邀請
+      for (const myTeam of myTeams) {
+        const sentInvitations = await getTeamSentInvitations(myTeam.id);
+        // 過濾出相關盃賽的邀請
+        const relevantInvitations = sentInvitations.filter(
+          (inv) => inv.tournamentId === tournamentId
+        );
+        // 建立對目標隊伍的邀請映射
+        for (const inv of relevantInvitations) {
+          const key = `${myTeam.id}-${inv.toTeam}`;
+          newInvitationsMap.set(key, inv);
+        }
+      }
+      // setInvitationsMap(newInvitationsMap);
+    } catch (err) {
+      console.error("載入邀請狀態失敗:", err);
+    }
+  };
+  const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  // 其餘 useState 已於最上方宣告，這裡移除重複宣告
 
   useEffect(() => {
     loadTournaments();
@@ -70,6 +191,8 @@ export function PracticeMatching() {
       setMyTeams(userTeams);
     } catch (err) {
       console.error("載入我的隊伍失敗:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,76 +202,9 @@ export function PracticeMatching() {
       const data = await getAllTournaments();
       setTournaments(data);
     } catch (err) {
-      console.error("載入盃賽失敗:", err);
+      console.error("載入賽事失敗:", err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSelectTournament = async (tournament) => {
-    setSelectedTournament(tournament);
-    setLoadingTeams(true);
-
-    try {
-      // 從盃賽的 participatingTeams 欄位獲取隊伍 ID 列表
-      const teamIds = tournament.participatingTeams || [];
-
-      // 根據 ID 列表獲取完整的隊伍資料
-      const teamPromises = teamIds.map((id) => getTeam(id));
-      const teamsData = await Promise.all(teamPromises);
-
-      setTeams(teamsData);
-
-      // useEffect 會自動載入邀請狀態
-    } catch (err) {
-      console.error("載入隊伍失敗:", err);
-      alert("載入隊伍失敗");
-      setTeams([]);
-    } finally {
-      setLoadingTeams(false);
-    }
-  };
-
-  const loadInvitationStatus = async (tournamentId) => {
-    try {
-      console.log(
-        "開始載入邀請狀態，盃賽ID:",
-        tournamentId,
-        "myTeams:",
-        myTeams.length,
-      );
-      const newInvitationsMap = new Map();
-
-      // 對每個我的隊伍，獲取發出的邀請
-      for (const myTeam of myTeams) {
-        const sentInvitations = await getTeamSentInvitations(myTeam.id);
-        console.log(
-          `隊伍 ${myTeam.name} 發出的邀請數:`,
-          sentInvitations.length,
-        );
-
-        // 過濾出相關盃賽的邀請
-        const relevantInvitations = sentInvitations.filter(
-          (inv) => inv.tournamentId === tournamentId,
-        );
-        console.log(
-          `隊伍 ${myTeam.name} 在此盃賽的邀請數:`,
-          relevantInvitations.length,
-        );
-
-        // 建立對目標隊伍的邀請映射
-        for (const inv of relevantInvitations) {
-          const key = `${myTeam.id}-${inv.toTeam}`;
-          newInvitationsMap.set(key, inv);
-          console.log("載入邀請狀態:", key, inv.status);
-        }
-      }
-
-      console.log("總共載入邀請數量:", newInvitationsMap.size);
-      console.log("invitationsMap keys:", Array.from(newInvitationsMap.keys()));
-      setInvitationsMap(newInvitationsMap);
-    } catch (err) {
-      console.error("載入邀請狀態失敗:", err);
     }
   };
 
@@ -395,9 +451,139 @@ export function PracticeMatching() {
             </div>
           )}
 
+          {/* 已移除偏好選擇區塊 */}
+          {/* 練習賽時間選擇與一鍵邀請 */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">選擇練習賽時間</h3>
+            {practiceEvents.length === 0 ? (
+              <div className="text-gray-500">目前沒有可用的練習賽事件，請先在隊伍日曆建立練習賽事件</div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {practiceEvents.map((event) => {
+                    let dateObj = null;
+                    if (event.startTime && typeof event.startTime === "object" && typeof event.startTime.toDate === "function") {
+                      dateObj = event.startTime.toDate();
+                    } else if (typeof event.startTime === "string" || typeof event.startTime === "number") {
+                      dateObj = new Date(event.startTime);
+                    }
+                    const label = dateObj && !isNaN(dateObj) ? dateObj.toLocaleString("zh-TW") : "(無效時間)";
+                    const checked = selectedPracticeTimes.some(sel => getTime(sel) === getTime(event.startTime));
+                    return (
+                      <label key={event.id} className={`flex items-center gap-1 px-3 py-1 rounded border cursor-pointer ${checked ? "bg-blue-600 text-white border-blue-600" : "bg-white text-blue-600 border-blue-600"}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedPracticeTimes(prev =>
+                              checked
+                                ? prev.filter(sel => getTime(sel) !== getTime(event.startTime))
+                                : [...prev, event.startTime]
+                            );
+                          }}
+                          disabled={excludedEventIds.includes(event.id)}
+                        />
+                        {label}
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="mb-2 text-sm text-gray-600">可勾選不參與媒合的時間：</div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {practiceEvents.map((event) => {
+                    let dateObj = null;
+                    if (event.startTime && typeof event.startTime === "object" && typeof event.startTime.toDate === "function") {
+                      dateObj = event.startTime.toDate();
+                    } else if (typeof event.startTime === "string" || typeof event.startTime === "number") {
+                      dateObj = new Date(event.startTime);
+                    }
+                    const label = dateObj && !isNaN(dateObj) ? dateObj.toLocaleString("zh-TW") : "(無效時間)";
+                    return (
+                      <label key={event.id} className="flex items-center gap-1 text-xs bg-gray-100 px-2 py-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={excludedEventIds.includes(event.id)}
+                          onChange={() => {
+                            setExcludedEventIds((prev) =>
+                              prev.includes(event.id)
+                                ? prev.filter((id) => id !== event.id)
+                                : [...prev, event.id]
+                            );
+                            // 若目前選擇的時間被排除，取消選取
+                            if (getTime(selectedPracticeTime) === getTime(event.startTime)) setSelectedPracticeTime(null);
+                          }}
+                        />
+                        不媒合 {label}
+                      </label>
+                    );
+                  })}
+                </div>
+                <button
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                  onClick={handleBatchInviteClick}
+                  disabled={selectedPracticeTimes.length === 0}
+                >
+                  用這些時間幫我找對手
+                </button>
+              </>
+            )}
+          </div>
+
           {/* 參賽隊伍列表 */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4">參賽隊伍</h3>
+      {/* 多邀請彈窗 */}
+      {/* 主畫面下方顯示重疊隊伍與時間選擇區塊 */}
+      {batchInviteCandidates.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">選擇要邀請的隊伍</h3>
+          <p className="text-sm text-gray-600 mb-4">系統已自動勾選所有與你有重疊練習賽時間的隊伍，你可手動取消不要的隊伍</p>
+          <div className="space-y-2 mb-6 max-h-60 overflow-y-auto">
+            {batchInviteCandidates.map((item) => (
+              <div key={item.team.id} className={`flex items-center p-3 border-2 rounded-lg ${item.checked ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-blue-300"}`}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => toggleBatchInviteCandidate(item.team.id)}
+                  className="w-4 h-4 text-blue-600 cursor-pointer transition"
+                />
+                <div className="ml-3 flex-1">
+                  <div className="font-semibold text-gray-800">{item.team.name}</div>
+                  <div className="text-sm text-gray-600">{item.team.school}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    重疊時間：
+                    {item.overlapTimes.map((time, idx) => {
+                      let dateObj = null;
+                      if (time && typeof time === "object" && typeof time.toDate === "function") {
+                        dateObj = time.toDate();
+                      } else if (typeof time === "string" || typeof time === "number") {
+                        dateObj = new Date(time);
+                      }
+                      const label = dateObj && !isNaN(dateObj) ? dateObj.toLocaleString("zh-TW") : "(無效時間)";
+                      return <span key={time}>{label}{idx < item.overlapTimes.length - 1 ? '、' : ''}</span>;
+                    })}
+                  </div>
+                </div>
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: item.team.teamColor || "#3B82F6" }}></div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleConfirmBatchInvite}
+              className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+            >
+              確認發送邀請
+            </button>
+            <button
+              onClick={() => setBatchInviteCandidates([])}
+              className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
             {loadingTeams ? (
               <div className="text-center py-8">
@@ -417,33 +603,6 @@ export function PracticeMatching() {
                   const invitationStatus = getInvitationStatus(team.id);
 
                   // 根據狀態決定按鈕文字和樣式
-                  let buttonText = "邀請練習賽";
-                  let buttonClass =
-                    "w-full px-4 py-2 bg-white text-gray-800 rounded hover:bg-opacity-90 transition font-semibold";
-                  let buttonDisabled = false;
-
-                  if (isMyTeam) {
-                    buttonText = "我的隊伍";
-                    buttonClass =
-                      "w-full px-4 py-2 bg-white bg-opacity-30 text-white rounded cursor-not-allowed";
-                    buttonDisabled = true;
-                  } else if (invitationStatus === "pending") {
-                    buttonText = "已發送邀請 (待回應)";
-                    buttonClass =
-                      "w-full px-4 py-2 bg-yellow-100 text-yellow-800 rounded cursor-default font-semibold";
-                    buttonDisabled = true;
-                  } else if (invitationStatus === "accepted") {
-                    buttonText = "✓ 已同意邀請";
-                    buttonClass =
-                      "w-full px-4 py-2 bg-green-100 text-green-800 rounded cursor-default font-semibold";
-                    buttonDisabled = true;
-                  } else if (invitationStatus === "declined") {
-                    buttonText = "✗ 已拒絕邀請";
-                    buttonClass =
-                      "w-full px-4 py-2 bg-red-100 text-red-800 rounded cursor-default font-semibold";
-                    buttonDisabled = true;
-                  }
-
                   return (
                     <div
                       key={team.id}
@@ -462,16 +621,7 @@ export function PracticeMatching() {
                       <p className="text-sm text-white text-opacity-95 mb-3">
                         👥 {team.members?.length || 0} 位隊員
                       </p>
-
-                      <button
-                        onClick={() =>
-                          !buttonDisabled && handleInviteTeam(team)
-                        }
-                        disabled={buttonDisabled}
-                        className={buttonClass}
-                      >
-                        {buttonText}
-                      </button>
+                      {/* 已徹底移除邀請練習賽按鈕與相關狀態 */}
                     </div>
                   );
                 })}
@@ -525,7 +675,20 @@ export function PracticeMatching() {
 
             <div className="flex gap-3">
               <button
-                onClick={handleConfirmTeamSelection}
+                onClick={async () => {
+                  if (!selectedMyTeam || pendingBatchInviteTeams.length === 0) {
+                    alert("請至少選擇一個隊伍");
+                    return;
+                  }
+                  setShowTeamSelector(false);
+                  setShowBatchInvite(false);
+                  for (const toTeam of pendingBatchInviteTeams) {
+                    await sendInvitation(selectedMyTeam, toTeam);
+                  }
+                  alert(`已同時發送邀請給 ${pendingBatchInviteTeams.length} 支隊伍！`);
+                  setSelectedMyTeam(null);
+                  setPendingBatchInviteTeams([]);
+                }}
                 disabled={!selectedMyTeam}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
               >

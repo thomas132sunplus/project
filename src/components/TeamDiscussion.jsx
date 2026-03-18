@@ -20,6 +20,7 @@ import {
   getTeamSentInvitations,
   acceptInvitation,
   declineInvitation,
+  cancelOtherInvitations,
 } from "../firebase/invitations";
 import { getTournament } from "../firebase/tournaments";
 import { createPracticeMatch } from "../firebase/practiceMatches";
@@ -753,10 +754,26 @@ function InvitationsSection({ teamId }) {
 
       console.log("7. 找到邀請資料:", invitation);
 
+
       // 接受邀請
       console.log("8. 準備更新邀請狀態...");
       await acceptInvitation(invitationId, null);
       console.log("9. ✓ 邀請狀態已更新為 accepted");
+
+      // 自動取消同批其他邀請（同 fromTeam, tournamentId, practiceTime）
+      if (invitation.fromTeam && invitation.tournamentId && invitation.practiceTime) {
+        try {
+          await cancelOtherInvitations(
+            invitation.fromTeam,
+            invitation.tournamentId,
+            invitation.practiceTime,
+            invitationId
+          );
+          console.log("10. ✓ 已自動取消同批其他邀請");
+        } catch (cancelErr) {
+          console.error("❌ 自動取消其他邀請失敗:", cancelErr);
+        }
+      }
 
       // 自動創建練習賽記錄
       try {

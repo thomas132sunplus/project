@@ -7,6 +7,9 @@
       "hosting": {
         "edgewalker-6c6ac": [
           "edgewalker-6c6ac"
+        ],
+        "staging": [
+          "edgewalker-6c6ac-staging"
         ]
       }
     }

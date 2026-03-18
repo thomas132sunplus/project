@@ -12,7 +12,7 @@
       ]
     },
     {
-      "site": "edgewalker-6c6ac-staging",
+      "target": "staging",
       "public": "dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [

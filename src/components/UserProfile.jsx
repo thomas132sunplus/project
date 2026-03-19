@@ -9,6 +9,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { PersonalCalendar } from "./PersonalCalendar";
 
 export function UserProfile() {
+  // 展開個人檔案狀態
+  const [showProfileDetail, setShowProfileDetail] = useState(false);
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("teams"); // teams, calendar
   const [userData, setUserData] = useState(null);
@@ -185,12 +187,34 @@ export function UserProfile() {
           </div>
 
           {/* 編輯按鈕 */}
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm self-start flex-shrink-0"
-          >
-            {isEditing ? "取消編輯" : "✏️ 編輯資料"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowProfileDetail((v) => !v)}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm self-start flex-shrink-0"
+            >
+              {showProfileDetail ? "收合個人檔案" : "展開個人檔案"}
+            </button>
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm self-start flex-shrink-0"
+            >
+              {isEditing ? "取消編輯" : "✏️ 編輯資料"}
+            </button>
+          </div>
+                {/* 展開個人檔案內容 */}
+                {showProfileDetail && (
+                  <div className="mt-4 border-t pt-4">
+                    <h3 className="font-bold text-gray-800 mb-2">個人檔案</h3>
+                    <ul className="text-gray-700 text-sm md:text-base space-y-1">
+                      <li><span className="font-semibold">姓名：</span>{userData?.displayName || "未命名"}</li>
+                      <li><span className="font-semibold">學校：</span>{userData?.school || "-"}</li>
+                      <li><span className="font-semibold">字頭：</span>{userData?.grade || "-"}</li>
+                      <li><span className="font-semibold">個人簡介：</span>{userData?.bio || "-"}</li>
+                      <li><span className="font-semibold">Email：</span>{userData?.email || "-"}</li>
+                      <li><span className="font-semibold">頁面狀態：</span>{userData?.isPublic ? "🌐 公開" : "🔒 私密"}</li>
+                    </ul>
+                  </div>
+                )}
         </div>
 
         {/* 編輯表單 */}
@@ -228,11 +252,11 @@ export function UserProfile() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  年級
+                  字頭
                 </label>
                 <input
                   type="text"
-                  placeholder="年級"
+                  placeholder="字頭"
                   value={editForm.grade}
                   onChange={(e) =>
                     handleEditFormChange("grade", e.target.value)
@@ -242,15 +266,13 @@ export function UserProfile() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  電話
+                  個人簡介
                 </label>
                 <input
-                  type="tel"
-                  placeholder="電話"
-                  value={editForm.phoneNumber}
-                  onChange={(e) =>
-                    handleEditFormChange("phoneNumber", e.target.value)
-                  }
+                  type="text"
+                  placeholder="個人簡介"
+                  value={editForm.bio || ""}
+                  onChange={e => handleEditFormChange("bio", e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

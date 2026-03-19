@@ -1,4 +1,33 @@
 /**
+ * 隱藏單筆邀請（設 status=deleted）
+ * @param {string} invitationId - 邀請 ID
+ * @returns {Promise<void>}
+ */
+export async function hideInvitation(invitationId) {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, invitationId);
+    await updateDoc(docRef, { status: "deleted", respondedAt: serverTimestamp() });
+  } catch (error) {
+    console.error("隱藏邀請失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 批次隱藏邀請（設 status=deleted）
+ * @param {string[]} invitationIds - 邀請 ID 陣列
+ * @returns {Promise<void>}
+ */
+export async function hideInvitationsBatch(invitationIds) {
+  try {
+    const batch = invitationIds.map(id => updateDoc(doc(db, COLLECTION_NAME, id), { status: "deleted", respondedAt: serverTimestamp() }));
+    await Promise.all(batch);
+  } catch (error) {
+    console.error("批次隱藏邀請失敗:", error);
+    throw error;
+  }
+}
+/**
  * 取消同批其他邀請（同一 fromTeam, tournamentId, practiceTime，排除已接受的 invitationId）
  * @param {string} fromTeam - 發起隊伍 ID
  * @param {string} tournamentId - 盃賽 ID

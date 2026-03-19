@@ -420,13 +420,13 @@ export function Auth() {
                 value={formData.school}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例：建國中學"
+                placeholder="例：辯論學校"
               />
             </div>
 
             <div className="mb-6">
               <label className="block text-gray-700 font-semibold mb-2">
-                年級
+                字頭
               </label>
               <input
                 type="text"
@@ -434,7 +434,7 @@ export function Auth() {
                 value={formData.grade}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例：高二"
+                placeholder="例：二字"
               />
             </div>
 

@@ -115,6 +115,12 @@ export function TournamentDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div style={{color:'red',fontWeight:'bold',fontSize:'20px'}}>HELLO TOURNAMENT DETAIL</div>
+      {/* debug: 顯示目前使用者與盃賽創建者 uid */}
+      <div className="text-xs text-red-500 break-all max-w-xs mb-2">
+        currentUser.uid: {currentUser?.uid}<br />
+        tournament.createdBy: {tournament?.createdBy}
+      </div>
       {/* 返回按鈕 */}
       <Link
         to="/tournaments"
@@ -126,6 +132,11 @@ export function TournamentDetail() {
       <div className="bg-white rounded-lg shadow-md p-8">
         {/* 盃賽名稱 */}
         <div className="flex justify-between items-start mb-8">
+          {/* debug: 顯示目前使用者與盃賽創建者 uid */}
+          <div className="text-xs text-red-500 break-all max-w-xs mb-2">
+            currentUser.uid: {currentUser?.uid}<br />
+            tournament.createdBy: {tournament.createdBy}
+          </div>
           <h1 className="text-4xl font-bold text-gray-800">
             {tournament.name || "未命名盃賽"}
           </h1>
@@ -136,12 +147,14 @@ export function TournamentDetail() {
             >
               ✏️ 編輯
             </Link>
-            <button
-              onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-            >
-              刪除
-            </button>
+            {currentUser?.uid === tournament.createdBy && (
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+              >
+                刪除
+              </button>
+            )}
           </div>
         </div>
 

@@ -67,12 +67,20 @@ export function PracticeMatchDiscussion() {
       const [fromTeamData, toTeamData, tournamentData] = await Promise.all([
         getTeam(matchData.fromTeam || matchData.affirmativeTeam),
         getTeam(matchData.toTeam || matchData.negativeTeam),
-        getTournament(matchData.tournamentId),
+        getTournament(matchData.tournamentId).catch(() => null),
       ]);
 
       setFromTeam(fromTeamData);
       setToTeam(toTeamData);
       setTournament(tournamentData);
+
+      // 若盃賽已被刪除，則自動刪除此練習賽並導回列表
+      if (!tournamentData) {
+        await deletePracticeMatch(matchData.id);
+        alert("此盃賽已被刪除，相關練習賽房間也已自動移除。");
+        navigate("/practice-matches");
+        return;
+      }
 
       // 設定比賽資訊預設值
       if (matchData.matchInfo) {

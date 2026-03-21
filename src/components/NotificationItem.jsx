@@ -67,6 +67,45 @@ export function NotificationItem({ notification, onClick }) {
 
           {/* 訊息內容 */}
           <p className="text-sm text-gray-600 line-clamp-2">
+            {notification.startTime || notification.endTime ? (
+              <span>
+                🕒 時間：
+                {(() => {
+                  const start = notification.startTime
+                    ? typeof notification.startTime === "string"
+                      ? notification.startTime
+                      : notification.startTime.toDate
+                        ? notification.startTime
+                            .toDate()
+                            .toLocaleString("zh-TW", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              month: "2-digit",
+                              day: "2-digit",
+                            })
+                        : ""
+                    : "";
+                  const end = notification.endTime
+                    ? typeof notification.endTime === "string"
+                      ? notification.endTime
+                      : notification.endTime.toDate
+                        ? notification.endTime
+                            .toDate()
+                            .toLocaleString("zh-TW", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              month: "2-digit",
+                              day: "2-digit",
+                            })
+                        : ""
+                    : "";
+                  let label = start;
+                  if (end) label += ` ~ ${end}`;
+                  return label;
+                })()}
+                <br />
+              </span>
+            ) : null}
             {notification.message}
           </p>
 

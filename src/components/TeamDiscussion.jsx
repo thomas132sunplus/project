@@ -596,15 +596,29 @@ function CalendarSection({ teamId }) {
                   )}
                   <div className="space-y-1 text-sm text-gray-500">
                     <p>
-                      📅 開始：
-                      {event.startTime?.toDate?.()?.toLocaleString("zh-TW")}
+                      🕒 時間：
+                      {(() => {
+                        const start =
+                          event.startTime?.toDate?.() ||
+                          new Date(event.startTime);
+                        const end =
+                          event.endTime?.toDate?.() ||
+                          (event.endTime ? new Date(event.endTime) : null);
+                        let label =
+                          start && !isNaN(start)
+                            ? start.toLocaleString("zh-TW", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                month: "2-digit",
+                                day: "2-digit",
+                              })
+                            : "";
+                        if (end && !isNaN(end)) {
+                          label += ` ~ ${end.toLocaleString("zh-TW", { hour: "2-digit", minute: "2-digit", month: "2-digit", day: "2-digit" })}`;
+                        }
+                        return label;
+                      })()}
                     </p>
-                    {event.endTime && (
-                      <p>
-                        🏁 結束：
-                        {event.endTime?.toDate?.()?.toLocaleString("zh-TW")}
-                      </p>
-                    )}
                     {event.location && <p>📍 地點：{event.location}</p>}
                     <p>👤 建立者：{event.creatorName}</p>
                   </div>
@@ -756,20 +770,23 @@ function InvitationsSection({ teamId }) {
 
       console.log("7. 找到邀請資料:", invitation);
 
-
       // 接受邀請
       console.log("8. 準備更新邀請狀態...");
       await acceptInvitation(invitationId, null);
       console.log("9. ✓ 邀請狀態已更新為 accepted");
 
       // 自動取消同批其他邀請（同 fromTeam, tournamentId, practiceTime）
-      if (invitation.fromTeam && invitation.tournamentId && invitation.practiceTime) {
+      if (
+        invitation.fromTeam &&
+        invitation.tournamentId &&
+        invitation.practiceTime
+      ) {
         try {
           await cancelOtherInvitations(
             invitation.fromTeam,
             invitation.tournamentId,
             invitation.practiceTime,
-            invitationId
+            invitationId,
           );
           console.log("10. ✓ 已自動取消同批其他邀請");
         } catch (cancelErr) {
@@ -783,18 +800,24 @@ function InvitationsSection({ teamId }) {
         // 自動帶入邀約練習賽時間
         let matchDate = "";
         let matchTime = "";
-        alert("[DEBUG] invitation.practiceTime: " + JSON.stringify(invitation.practiceTime));
+        alert(
+          "[DEBUG] invitation.practiceTime: " +
+            JSON.stringify(invitation.practiceTime),
+        );
         if (invitation.practiceTime) {
-          if (typeof invitation.practiceTime === 'object' && invitation.practiceTime.toDate) {
+          if (
+            typeof invitation.practiceTime === "object" &&
+            invitation.practiceTime.toDate
+          ) {
             const dt = invitation.practiceTime.toDate();
-            matchDate = dt.toISOString().slice(0,10); // yyyy-mm-dd
-            matchTime = dt.toTimeString().slice(0,5); // HH:mm
-          } else if (typeof invitation.practiceTime === 'string') {
+            matchDate = dt.toISOString().slice(0, 10); // yyyy-mm-dd
+            matchTime = dt.toTimeString().slice(0, 5); // HH:mm
+          } else if (typeof invitation.practiceTime === "string") {
             // 嘗試解析 ISO 字串
             const dt = new Date(invitation.practiceTime);
             if (!isNaN(dt)) {
-              matchDate = dt.toISOString().slice(0,10);
-              matchTime = dt.toTimeString().slice(0,5);
+              matchDate = dt.toISOString().slice(0, 10);
+              matchTime = dt.toTimeString().slice(0, 5);
             } else {
               matchDate = invitation.practiceTime;
             }
@@ -821,7 +844,9 @@ function InvitationsSection({ teamId }) {
             },
           },
         };
-        alert(`[DEBUG] matchData.matchInfo.date: ${matchDate} / time: ${matchTime}`);
+        alert(
+          `[DEBUG] matchData.matchInfo.date: ${matchDate} / time: ${matchTime}`,
+        );
         console.log("11. 練習賽資料:", matchData);
         console.log("12. 使用用戶 ID:", currentUser.uid);
 
@@ -885,15 +910,30 @@ function InvitationsSection({ teamId }) {
   // 支援一鍵刪除已回復與已取消邀請
   const handleHideAll = async (type, statusList) => {
     // 預設一鍵刪除已回復/已取消
-    if (!statusList) statusList = ["accepted","declined","confirmed","cancelled"];
-    const list = type === 'received'
-      ? receivedInvitations.filter(inv => statusList.includes(inv.status) && inv.status !== "deleted")
-      : sentInvitations.filter(inv => statusList.includes(inv.status) && inv.status !== "deleted");
+    if (!statusList)
+      statusList = ["accepted", "declined", "confirmed", "cancelled"];
+    const list =
+      type === "received"
+        ? receivedInvitations.filter(
+            (inv) =>
+              statusList.includes(inv.status) && inv.status !== "deleted",
+          )
+        : sentInvitations.filter(
+            (inv) =>
+              statusList.includes(inv.status) && inv.status !== "deleted",
+          );
     if (list.length === 0) return alert("沒有可刪除的紀錄");
-    const statusText = statusList.includes('pending') ? '待回應' : '已回復/已取消';
-    if (!window.confirm(`確定要刪除所有${type === 'received' ? '收到' : '發出'}的${statusText}邀請？`)) return;
+    const statusText = statusList.includes("pending")
+      ? "待回應"
+      : "已回復/已取消";
+    if (
+      !window.confirm(
+        `確定要刪除所有${type === "received" ? "收到" : "發出"}的${statusText}邀請？`,
+      )
+    )
+      return;
     try {
-      await hideInvitationsBatch(list.map(inv => inv.id));
+      await hideInvitationsBatch(list.map((inv) => inv.id));
       loadInvitations();
     } catch (err) {
       alert("批次刪除失敗，請稍後再試");
@@ -933,7 +973,6 @@ function InvitationsSection({ teamId }) {
     <div>
       <h2 className="text-xl font-bold text-gray-800 mb-4">練習賽邀請</h2>
 
-
       <div className="space-y-6">
         {/* 收到的邀請 */}
         <div className="bg-blue-50 rounded-lg p-6">
@@ -941,76 +980,125 @@ function InvitationsSection({ teamId }) {
             <h3 className="text-lg font-bold text-gray-800">📥 收到的邀請</h3>
             <button
               className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-              onClick={() => handleHideAll('received')}
-            >一鍵刪除已回復</button>
+              onClick={() => handleHideAll("received")}
+            >
+              一鍵刪除已回復
+            </button>
           </div>
-          {receivedInvitations.filter(inv => inv.status !== "deleted").length === 0 ? (
+          {receivedInvitations.filter((inv) => inv.status !== "deleted")
+            .length === 0 ? (
             <p className="text-gray-500">目前沒有收到邀請</p>
           ) : (
             <div className="space-y-3">
-              {receivedInvitations.filter(inv => inv.status !== "deleted").map((invitation) => (
-                <div
-                  key={invitation.id}
-                  className="bg-white rounded-lg p-4 shadow-sm border border-gray-200"
-                >
-                  {/* ...existing code... */}
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-bold text-gray-800">
-                          {invitation.fromTeamData?.name || "未知隊伍"}
-                        </h4>
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(invitation.status)}`}
-                        >
-                          {getStatusText(invitation.status)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        🏆 {invitation.tournamentData?.name || "未知盃賽"}
-                      </p>
-                      <p className="text-sm text-blue-600 mb-1">
-                        🕒 練習賽時間：
-                        {invitation.practiceTime
-                          ? (typeof invitation.practiceTime === 'object' && invitation.practiceTime.toDate)
-                            ? invitation.practiceTime.toDate().toLocaleString('zh-TW')
-                            : invitation.practiceTime
-                          : '未指定'}
-                      </p>
-                      {invitation.message && (
-                        <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded mt-2">
-                          💬 {invitation.message}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-2">
-                        {invitation.createdAt
-                          ?.toDate?.()
-                          ?.toLocaleString("zh-TW") || "未知時間"}
-                      </p>
-                    </div>
+              {receivedInvitations
+                .filter((inv) => inv.status !== "deleted")
+                .map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="bg-white rounded-lg p-4 shadow-sm border border-gray-200"
+                  >
                     {/* ...existing code... */}
-                    <div>
-                      <button
-                        className="ml-2 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                        onClick={() => handleHideInvitation(invitation.id)}
-                      >刪除</button>
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-bold text-gray-800">
+                            {invitation.fromTeamData?.name || "未知隊伍"}
+                          </h4>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(invitation.status)}`}
+                          >
+                            {getStatusText(invitation.status)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          🏆 {invitation.tournamentData?.name || "未知盃賽"}
+                        </p>
+                        <p className="text-sm text-blue-600 mb-1">
+                          🕒 練習賽時間：
+                          {(() => {
+                            // 允許 Firestore Timestamp、Date、string
+                            let startObj = null;
+                            let endObj = null;
+                            if (invitation.practiceTime) {
+                              if (
+                                typeof invitation.practiceTime === "object" &&
+                                invitation.practiceTime.toDate
+                              ) {
+                                startObj = invitation.practiceTime.toDate();
+                              } else if (
+                                typeof invitation.practiceTime === "string" ||
+                                typeof invitation.practiceTime === "number"
+                              ) {
+                                startObj = new Date(invitation.practiceTime);
+                              }
+                            }
+                            if (invitation.endTime) {
+                              if (
+                                typeof invitation.endTime === "object" &&
+                                invitation.endTime.toDate
+                              ) {
+                                endObj = invitation.endTime.toDate();
+                              } else if (
+                                typeof invitation.endTime === "string" ||
+                                typeof invitation.endTime === "number"
+                              ) {
+                                endObj = new Date(invitation.endTime);
+                              }
+                            }
+                            if (startObj && !isNaN(startObj)) {
+                              let label = startObj.toLocaleString("zh-TW");
+                              if (
+                                endObj &&
+                                !isNaN(endObj) &&
+                                endObj.getTime() !== startObj.getTime()
+                              ) {
+                                label += " ~ " + endObj.toLocaleString("zh-TW");
+                              }
+                              return label;
+                            }
+                            return "未指定";
+                          })()}
+                        </p>
+                        {invitation.message && (
+                          <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded mt-2">
+                            💬 {invitation.message}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-2">
+                          {invitation.createdAt
+                            ?.toDate?.()
+                            ?.toLocaleString("zh-TW") || "未知時間"}
+                        </p>
+                      </div>
+                      {/* ...existing code... */}
+                      <div>
+                        <button
+                          className="ml-2 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                          onClick={() => handleHideInvitation(invitation.id)}
+                        >
+                          刪除
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {invitation.status === "pending" && (
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                        onClick={() => handleAccept(invitation.id)}
-                      >同意</button>
-                      <button
-                        className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                        onClick={() => handleDecline(invitation.id)}
-                      >拒絕</button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    {invitation.status === "pending" && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                          onClick={() => handleAccept(invitation.id)}
+                        >
+                          同意
+                        </button>
+                        <button
+                          className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          onClick={() => handleDecline(invitation.id)}
+                        >
+                          拒絕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
           )}
         </div>
@@ -1022,58 +1110,124 @@ function InvitationsSection({ teamId }) {
             <div className="flex gap-2">
               <button
                 className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                onClick={() => handleHideAll('sent', ["accepted","declined","confirmed","cancelled"])}
-              >一鍵刪除已回復</button>
+                onClick={() =>
+                  handleHideAll("sent", [
+                    "accepted",
+                    "declined",
+                    "confirmed",
+                    "cancelled",
+                  ])
+                }
+              >
+                一鍵刪除已回復
+              </button>
               <button
                 className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
-                onClick={() => handleHideAll('sent', ["pending"])}
-              >一鍵刪除待回應</button>
+                onClick={() => handleHideAll("sent", ["pending"])}
+              >
+                一鍵刪除待回應
+              </button>
             </div>
           </div>
-          {sentInvitations.filter(inv => inv.status !== "deleted" && inv.status !== "cancelled").length === 0 ? (
+          {sentInvitations.filter(
+            (inv) => inv.status !== "deleted" && inv.status !== "cancelled",
+          ).length === 0 ? (
             <p className="text-gray-500">目前沒有發出邀請</p>
           ) : (
             <div className="space-y-3">
-              {sentInvitations.filter(inv => inv.status !== "deleted" && inv.status !== "cancelled").map((invitation) => (
-                <div
-                  key={invitation.id}
-                  className="bg-white rounded-lg p-4 shadow-sm border border-gray-200"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-bold text-gray-800">
-                          {invitation.toTeamData?.name || "未知隊伍"}
-                        </h4>
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(invitation.status)}`}
-                        >
-                          {getStatusText(invitation.status)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        🏆 {invitation.tournamentData?.name || "未知盃賽"}
-                      </p>
-                      {invitation.message && (
-                        <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded mt-2">
-                          💬 {invitation.message}
+              {sentInvitations
+                .filter(
+                  (inv) =>
+                    inv.status !== "deleted" && inv.status !== "cancelled",
+                )
+                .map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="bg-white rounded-lg p-4 shadow-sm border border-gray-200"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-bold text-gray-800">
+                            {invitation.toTeamData?.name || "未知隊伍"}
+                          </h4>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(invitation.status)}`}
+                          >
+                            {getStatusText(invitation.status)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          🏆 {invitation.tournamentData?.name || "未知盃賽"}
                         </p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-2">
-                        {invitation.createdAt
-                          ?.toDate?.()
-                          ?.toLocaleString("zh-TW") || "未知時間"}
-                      </p>
-                    </div>
-                    <div>
-                      <button
-                        className="ml-2 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                        onClick={() => handleHideInvitation(invitation.id)}
-                      >刪除</button>
+                        <p className="text-sm text-blue-600 mb-1">
+                          🕒 練習賽時間：
+                          {(() => {
+                            // 允許 Firestore Timestamp、Date、string
+                            let startObj = null;
+                            let endObj = null;
+                            if (invitation.practiceTime) {
+                              if (
+                                typeof invitation.practiceTime === "object" &&
+                                invitation.practiceTime.toDate
+                              ) {
+                                startObj = invitation.practiceTime.toDate();
+                              } else if (
+                                typeof invitation.practiceTime === "string" ||
+                                typeof invitation.practiceTime === "number"
+                              ) {
+                                startObj = new Date(invitation.practiceTime);
+                              }
+                            }
+                            if (invitation.endTime) {
+                              if (
+                                typeof invitation.endTime === "object" &&
+                                invitation.endTime.toDate
+                              ) {
+                                endObj = invitation.endTime.toDate();
+                              } else if (
+                                typeof invitation.endTime === "string" ||
+                                typeof invitation.endTime === "number"
+                              ) {
+                                endObj = new Date(invitation.endTime);
+                              }
+                            }
+                            if (startObj && !isNaN(startObj)) {
+                              let label = startObj.toLocaleString("zh-TW");
+                              if (
+                                endObj &&
+                                !isNaN(endObj) &&
+                                endObj.getTime() !== startObj.getTime()
+                              ) {
+                                label += " ~ " + endObj.toLocaleString("zh-TW");
+                              }
+                              return label;
+                            }
+                            return "未指定";
+                          })()}
+                        </p>
+                        {invitation.message && (
+                          <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded mt-2">
+                            💬 {invitation.message}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-2">
+                          {invitation.createdAt
+                            ?.toDate?.()
+                            ?.toLocaleString("zh-TW") || "未知時間"}
+                        </p>
+                      </div>
+                      <div>
+                        <button
+                          className="ml-2 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                          onClick={() => handleHideInvitation(invitation.id)}
+                        >
+                          刪除
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>

@@ -390,14 +390,29 @@ export function PersonalCalendar() {
                   {/* 當日事件顯示，可自行擴充 */}
                   {dayEvents.length > 0 && (
                     <div className="mt-1 space-y-0.5">
-                      {dayEvents.slice(0, 2).map((evt, i) => (
-                        <div
-                          key={i}
-                          className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
-                        >
-                          {evt.title}
-                        </div>
-                      ))}
+                      {dayEvents.slice(0, 2).map((evt, i) => {
+                        const toTime = (ts) => {
+                          const d = ts?.toDate ? ts.toDate() : new Date(ts);
+                          return d.toLocaleTimeString("zh-TW", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
+                        };
+                        const start = evt.startTime
+                          ? toTime(evt.startTime)
+                          : "";
+                        const end = evt.endTime ? toTime(evt.endTime) : "";
+                        let label = start;
+                        if (end) label += ` ~ ${end}`;
+                        return (
+                          <div
+                            key={i}
+                            className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                          >
+                            {label} {evt.title}
+                          </div>
+                        );
+                      })}
                       {dayEvents.length > 2 && (
                         <div className="text-xs text-gray-400">
                           +{dayEvents.length - 2} 更多
@@ -444,14 +459,29 @@ export function PersonalCalendar() {
                   {/* 當日事件顯示，可自行擴充 */}
                   {dayEvents.length > 0 && (
                     <div className="mt-1 space-y-0.5">
-                      {dayEvents.slice(0, 2).map((evt, i) => (
-                        <div
-                          key={i}
-                          className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
-                        >
-                          {evt.title}
-                        </div>
-                      ))}
+                      {dayEvents.slice(0, 2).map((evt, i) => {
+                        const toTime = (ts) => {
+                          const d = ts?.toDate ? ts.toDate() : new Date(ts);
+                          return d.toLocaleTimeString("zh-TW", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
+                        };
+                        const start = evt.startTime
+                          ? toTime(evt.startTime)
+                          : "";
+                        const end = evt.endTime ? toTime(evt.endTime) : "";
+                        let label = start;
+                        if (end) label += ` ~ ${end}`;
+                        return (
+                          <div
+                            key={i}
+                            className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                          >
+                            {label} {evt.title}
+                          </div>
+                        );
+                      })}
                       {dayEvents.length > 2 && (
                         <div className="text-xs text-gray-400">
                           +{dayEvents.length - 2} 更多

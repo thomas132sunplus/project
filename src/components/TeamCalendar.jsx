@@ -600,11 +600,15 @@ export function TeamCalendar({ teamId }) {
           <button
             onClick={() => setViewMode("week")}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "week" ? "bg-blue-600 text-white" : "bg-white text-blue-700 border border-blue-600"}`}
-          >週曆</button>
+          >
+            週曆
+          </button>
           <button
             onClick={() => setViewMode("month")}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === "month" ? "bg-blue-600 text-white" : "bg-white text-blue-700 border border-blue-600"}`}
-          >月曆</button>
+          >
+            月曆
+          </button>
         </div>
       </div>
 
@@ -875,7 +879,35 @@ export function TeamCalendar({ teamId }) {
                               <div
                                 className={`absolute bottom-0 left-0 right-0 ${evtBgMap[evtType] || evtBgMap.other} text-white text-[7px] leading-tight text-center truncate px-0.5 font-medium`}
                               >
-                                {slotEvts[0].title}
+                                {(() => {
+                                  const evt = slotEvts[0];
+                                  let start = evt.startTime?.toDate
+                                    ? evt.startTime.toDate()
+                                    : new Date(evt.startTime);
+                                  let end = evt.endTime?.toDate
+                                    ? evt.endTime.toDate()
+                                    : evt.endTime
+                                      ? new Date(evt.endTime)
+                                      : null;
+                                  let label =
+                                    start && !isNaN(start)
+                                      ? start.toLocaleTimeString("zh-TW", {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : "";
+                                  if (end && !isNaN(end)) {
+                                    label +=
+                                      " ~ " +
+                                      end.toLocaleTimeString("zh-TW", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      });
+                                  }
+                                  return (
+                                    label + (evt.title ? " " + evt.title : "")
+                                  );
+                                })()}
                               </div>
                             );
                           })()}
@@ -948,7 +980,32 @@ export function TeamCalendar({ teamId }) {
                         key={idx}
                         className={`text-[9px] leading-tight ${evtStyleMap[evtType] || evtStyleMap.other} rounded px-1 mb-0.5 truncate`}
                       >
-                        {evt.title}
+                        {(() => {
+                          let start = evt.startTime?.toDate
+                            ? evt.startTime.toDate()
+                            : new Date(evt.startTime);
+                          let end = evt.endTime?.toDate
+                            ? evt.endTime.toDate()
+                            : evt.endTime
+                              ? new Date(evt.endTime)
+                              : null;
+                          let label =
+                            start && !isNaN(start)
+                              ? start.toLocaleTimeString("zh-TW", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "";
+                          if (end && !isNaN(end)) {
+                            label +=
+                              " ~ " +
+                              end.toLocaleTimeString("zh-TW", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              });
+                          }
+                          return label + (evt.title ? " " + evt.title : "");
+                        })()}
                       </div>
                     );
                   })}
@@ -1275,7 +1332,24 @@ export function TeamCalendar({ teamId }) {
                         {event.title}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {start.toLocaleString("zh-TW")}
+                        {(() => {
+                          const end =
+                            event.endTime?.toDate?.() ||
+                            (event.endTime ? new Date(event.endTime) : null);
+                          let label =
+                            start && !isNaN(start)
+                              ? start.toLocaleString("zh-TW", {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "";
+                          if (end && !isNaN(end)) {
+                            label += ` ~ ${end.toLocaleString("zh-TW", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+                          }
+                          return label;
+                        })()}
                       </span>
                     </div>
                     <button

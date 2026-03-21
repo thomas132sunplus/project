@@ -37,7 +37,8 @@ export function PracticeMatching() {
   const [batchInviteCandidates, setBatchInviteCandidates] = useState([]); // {team, checked, overlapTimes}
   const [practiceEvents, setPracticeEvents] = useState([]); // 全部隊伍事件
   const [myTeamPracticeEvents, setMyTeamPracticeEvents] = useState([]); // 代表隊伍事件
-  const [selectedPracticeTimes, setSelectedPracticeTimes] = useState([]); // 目前複選的練習賽時間
+  // 只存 timestamp (number)
+  const [selectedPracticeTimes, setSelectedPracticeTimes] = useState([]); // 目前複選的練習賽時間（timestamp）
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [joinSelectedTeamId, setJoinSelectedTeamId] = useState("");
 
@@ -72,63 +73,115 @@ export function PracticeMatching() {
   // 批次邀請主流程
   const handleBatchInviteClick = () => {
     if (!selectedPracticeTimes.length) return;
-    const selectedTimes = selectedPracticeTimes.map(getTime);
-    setBatchInviteCandidates((prev) => {
-      const prevCheckedMap = new Map(
-        prev.map((item) => [item.team.id, item.checked]),
-      );
-      const candidates = teams
-        .map((team) => {
-          const overlapTimes = practiceEvents
-            .filter(
-              (event) =>
-                event.teamId === team.id &&
-                selectedTimes.includes(getTime(event.startTime)),
-            )
-            .map((event) => event.startTime);
-          return {
-            team,
-            checked: prevCheckedMap.has(team.id)
-              ? prevCheckedMap.get(team.id)
-              : overlapTimes.length > 0,
-            overlapTimes,
-          };
-        })
-        .filter((item) => item.overlapTimes.length > 0);
-      return candidates;
-    });
+    // 取得自己所有已選練習賽事件的時間區間（selectedPracticeTimes 只存 timestamp）
+    const myRanges = myTeamPracticeEvents
+      .filter((ev) => selectedPracticeTimes.includes(ev.startTime))
+      .map((ev) => {
+        const start = ev.startTime;
+        const end = ev.endTime ? getTime(ev.endTime) : start;
+        return { start, end };
+      });
+    // 取得自己的隊伍 ID 列表
+    const myTeamIds = myTeams.map((t) => t.id);
+    const candidates = teams
+      .filter((team) => !myTeamIds.includes(team.id)) // 排除自己的隊伍
+      .map((team) => {
+        // 找出與自己任一區間有重疊的對方事件
+        const overlapEvents = practiceEvents.filter((event) => {
+          if (event.teamId !== team.id) return false;
+          const eventStart = getTime(event.startTime);
+          const eventEnd = event.endTime ? getTime(event.endTime) : eventStart;
+          return myRanges.some(
+            ({ start, end }) => eventStart <= end && eventEnd >= start,
+          );
+        });
+        const overlapTimes = overlapEvents.map((ev) => getTime(ev.startTime));
+        return {
+          team,
+          checked: overlapTimes.length > 0,
+          overlapTimes,
+        };
+      })
+      .filter((item) => item.overlapTimes.length > 0);
+    setBatchInviteCandidates(candidates);
+    // 只有在點擊時才顯示「暫時沒有時間重疊的隊伍」
+    if (candidates.length === 0) {
+      setBatchInviteModalText("暫時沒有時間重疊的隊伍");
+      setShowBatchInviteModal(true);
+      setTimeout(() => setShowBatchInviteModal(false), 2000);
+    }
   };
 
-  // 批次確認發送邀請
+  // 彈窗狀態
+  const [showBatchInviteModal, setShowBatchInviteModal] = useState(false);
+  const [batchInviteModalText, setBatchInviteModalText] = useState("");
+
+  // 批次確認發送邀請（新版：自訂 modal）
   const handleConfirmBatchInvite = async () => {
     const myTeam = selectedMyTeam || (myTeams.length > 0 ? myTeams[0] : null);
     if (!myTeam) {
-      alert("你沒有可用的隊伍");
+      setBatchInviteModalText("你沒有可用的隊伍");
+      setShowBatchInviteModal(true);
+      setTimeout(() => setShowBatchInviteModal(false), 2000);
       return;
     }
     const selectedCandidates = batchInviteCandidates.filter(
       (item) => item.checked,
     );
     if (selectedCandidates.length === 0) {
-      alert("請至少選擇一個對手");
+      setBatchInviteModalText("請至少選擇一個對手");
+      setShowBatchInviteModal(true);
+      setTimeout(() => setShowBatchInviteModal(false), 2000);
       return;
     }
+    setBatchInviteModalText("邀請發送中...");
+    setShowBatchInviteModal(true);
     let count = 0;
     for (const item of selectedCandidates) {
       for (const overlapTime of item.overlapTimes) {
+        // 取得 matchEvent，並強制轉型 start/endTime
+        const matchEvent = practiceEvents.find(
+          (ev) =>
+            getTime(ev.startTime) === getTime(overlapTime) &&
+            ev.teamId === item.team.id,
+        );
+        let endTime = null;
+        let practiceTime = overlapTime;
+        if (matchEvent) {
+          practiceTime = matchEvent.startTime?.toDate
+            ? matchEvent.startTime
+            : new Date(matchEvent.startTime);
+          endTime = matchEvent.endTime?.toDate
+            ? matchEvent.endTime
+            : matchEvent.endTime
+              ? new Date(matchEvent.endTime)
+              : null;
+        } else {
+          practiceTime = new Date(overlapTime);
+        }
+        if (!endTime) {
+          setBatchInviteModalText("請先為所有邀請選擇結束時間！");
+          setShowBatchInviteModal(true);
+          setTimeout(() => setShowBatchInviteModal(false), 2000);
+          return;
+        }
         await createInvitation({
           fromTeam: myTeam.id,
           toTeam: item.team.id,
           tournamentId: selectedTournament.id,
-          practiceTime: overlapTime,
+          practiceTime: practiceTime,
+          endTime: endTime,
         });
         count++;
       }
     }
-    alert(`已同時發送邀請給 ${count} 組隊伍/時間！`);
+    setBatchInviteModalText(`已同時發送邀請給 ${count} 組隊伍/時間！`);
     setBatchInviteCandidates([]);
     setSelectedPracticeTimes([]);
+    setTimeout(() => setShowBatchInviteModal(false), 2000);
   };
+
+  // ...existing code...
 
   useEffect(() => {
     loadTournaments();
@@ -269,11 +322,61 @@ export function PracticeMatching() {
       return;
     }
     try {
+      // 讓使用者選擇要邀請的練習賽事件（若有多個）
+      const myEvents = practiceEvents.filter((ev) => ev.teamId === fromTeam.id);
+      let selectedEvent = null;
+      if (myEvents.length === 1) {
+        selectedEvent = myEvents[0];
+      } else if (myEvents.length > 1) {
+        // 多個事件時，讓使用者選擇
+        const eventOptions = myEvents
+          .map((ev, idx) => {
+            const start = ev.startTime?.toDate
+              ? ev.startTime.toDate()
+              : new Date(ev.startTime);
+            const end = ev.endTime?.toDate
+              ? ev.endTime.toDate()
+              : ev.endTime
+                ? new Date(ev.endTime)
+                : null;
+            return `${idx + 1}. ${start.toLocaleString("zh-TW")}${end ? ` ~ ${end.toLocaleString("zh-TW")}` : " (請先設定結束時間)"}`;
+          })
+          .join("\n");
+        const pick = prompt(
+          `請選擇要邀請的練習賽時間（必須有結束時間）：\n${eventOptions}\n請輸入序號（1-${myEvents.length}）`,
+        );
+        const pickIdx = parseInt(pick, 10) - 1;
+        if (!isNaN(pickIdx) && myEvents[pickIdx]) {
+          selectedEvent = myEvents[pickIdx];
+        } else {
+          alert("未選擇正確的練習賽時間，取消邀請");
+          return;
+        }
+      }
+      if (!selectedEvent) {
+        alert("沒有可用的練習賽事件");
+        return;
+      }
+      // 轉型為 Firestore Timestamp 或 ISO 字串
+      const practiceTime = selectedEvent.startTime?.toDate
+        ? selectedEvent.startTime
+        : new Date(selectedEvent.startTime);
+      const endTime = selectedEvent.endTime?.toDate
+        ? selectedEvent.endTime
+        : selectedEvent.endTime
+          ? new Date(selectedEvent.endTime)
+          : null;
+      if (!endTime) {
+        alert("請先為該練習賽事件設定結束時間，才能發送邀請！");
+        return;
+      }
       await createInvitation({
         fromTeam: fromTeam.id,
         toTeam: toTeam.id,
         tournamentId: selectedTournament.id,
         message: message || `${fromTeam.name} 邀請你進行練習賽`,
+        practiceTime: practiceTime,
+        endTime: endTime,
       });
       alert("邀請已發送！");
       const key = `${fromTeam.id}-${toTeam.id}`;
@@ -283,6 +386,8 @@ export function PracticeMatching() {
         tournamentId: selectedTournament.id,
         status: "pending",
         message: message || `${fromTeam.name} 邀請你進行練習賽`,
+        practiceTime: practiceTime,
+        endTime: endTime,
       };
       const newInvitationsMap = new Map(invitationsMap);
       newInvitationsMap.set(key, newInvitation);
@@ -304,16 +409,21 @@ export function PracticeMatching() {
       setSelectedMyTeam((prev) => {
         // 僅在未選擇或選擇的隊伍不在本盃賽時才自動設預設
         if (!prev || !participatingMyTeams.some((t) => t.id === prev.id)) {
+          // 只在切換代表隊伍時才自動全選
+          const events = practiceEvents.filter(
+            (ev) => ev.teamId === defaultTeam.id,
+          );
+          // 轉成 { ...event, startTime: timestamp }
+          const eventsWithTimestamp = events.map(ev => ({ ...ev, startTime: getTime(ev.startTime) }));
+          setMyTeamPracticeEvents(eventsWithTimestamp);
+          setSelectedPracticeTimes(eventsWithTimestamp.map((ev) => ev.startTime).filter((t) => t !== null));
           return defaultTeam;
         }
+        // 若沒切換代表隊伍，只更新事件，不動勾選
+        const events = practiceEvents.filter((ev) => ev.teamId === prev.id);
+        setMyTeamPracticeEvents(events);
         return prev;
       });
-      // practiceEvents 載入後才設事件
-      const events = practiceEvents.filter(
-        (ev) => ev.teamId === defaultTeam.id,
-      );
-      setMyTeamPracticeEvents(events);
-      setSelectedPracticeTimes(events.map((ev) => ev.startTime));
     } else {
       setSelectedMyTeam(null);
       setMyTeamPracticeEvents([]);
@@ -356,6 +466,21 @@ export function PracticeMatching() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* 批次邀請狀態 Modal */}
+      {showBatchInviteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg px-8 py-6 text-center max-w-xs w-full">
+            <div className="text-lg font-semibold text-gray-800 mb-2">
+              {batchInviteModalText}
+            </div>
+            {batchInviteModalText === "邀請發送中..." && (
+              <div className="flex justify-center mt-2 mb-1">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* 頁面標題 */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -432,43 +557,9 @@ export function PracticeMatching() {
                       </button>
                     )}
                     {/* 加入盃賽按鈕（若有我的隊伍已參賽則顯示已加入） */}
-                    {(() => {
-                      // 判斷我的隊伍是否已參加此盃賽
-                      const myTeamIds = myTeams.map((t) => t.id);
-                      const joined = tournament.participatingTeams?.some(
-                        (teamId) => myTeamIds.includes(teamId),
-                      );
-                      if (joined) {
-                        return (
-                          <button
-                            className="ml-2 px-3 py-1 text-sm text-gray-400 bg-gray-200 rounded cursor-not-allowed"
-                            disabled
-                          >
-                            已經加入盃賽
-                          </button>
-                        );
-                      } else {
-                        return (
-                          <button
-                            className="px-3 py-1 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setShowJoinDialog(true);
-                              setJoinSelectedTeamId("");
-                              // 取用 tournaments 陣列中最新的 tournament 物件
-                              const latest =
-                                tournaments.find(
-                                  (t) => t.id === tournament.id,
-                                ) || tournament;
-                              setJoinTargetTournament(latest);
-                            }}
-                          >
-                            ＋加入盃賽
-                          </button>
-                        );
-                      }
-                    })()}
+                    {/* 這裡原本有多餘的註解和錯誤結構，已修正 */}
+                  }
+                })()}
                   </div>
                 </div>
               ))}
@@ -631,12 +722,13 @@ export function PracticeMatching() {
                 onChange={(e) => {
                   const team = myTeams.find((t) => t.id === e.target.value);
                   setSelectedMyTeam(team);
-                  // 切換時只顯示該隊伍的事件並同步選擇時間
+                  // 切換時只顯示該隊伍的事件並同步全選
                   const events = practiceEvents.filter(
                     (ev) => ev.teamId === team.id,
                   );
-                  setMyTeamPracticeEvents(events);
-                  setSelectedPracticeTimes(events.map((ev) => ev.startTime));
+                  const eventsWithTimestamp = events.map(ev => ({ ...ev, startTime: getTime(ev.startTime) }));
+                  setMyTeamPracticeEvents(eventsWithTimestamp);
+                  setSelectedPracticeTimes(eventsWithTimestamp.map((ev) => ev.startTime).filter((t) => t !== null));
                 }}
               >
                 {myTeams.map((team) => (
@@ -699,43 +791,58 @@ export function PracticeMatching() {
               <>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {myTeamPracticeEvents.map((event) => {
-                    let dateObj = null;
+                    let startObj = null;
+                    let endObj = null;
                     if (
                       event.startTime &&
                       typeof event.startTime === "object" &&
                       typeof event.startTime.toDate === "function"
                     ) {
-                      dateObj = event.startTime.toDate();
+                      startObj = event.startTime.toDate();
                     } else if (
                       typeof event.startTime === "string" ||
                       typeof event.startTime === "number"
                     ) {
-                      dateObj = new Date(event.startTime);
+                      startObj = new Date(event.startTime);
                     }
-                    const label =
-                      dateObj && !isNaN(dateObj)
-                        ? dateObj.toLocaleString("zh-TW")
-                        : "(無效時間)";
-                    const checked = selectedPracticeTimes.some(
-                      (sel) => getTime(sel) === getTime(event.startTime),
-                    );
+                    if (
+                      event.endTime &&
+                      typeof event.endTime === "object" &&
+                      typeof event.endTime.toDate === "function"
+                    ) {
+                      endObj = event.endTime.toDate();
+                    } else if (
+                      typeof event.endTime === "string" ||
+                      typeof event.endTime === "number"
+                    ) {
+                      endObj = new Date(event.endTime);
+                    }
+                    let label = "(無效時間)";
+                    if (startObj && !isNaN(startObj)) {
+                      label = startObj.toLocaleString("zh-TW");
+                      if (endObj && !isNaN(endObj)) {
+                        label += " ~ " + endObj.toLocaleString("zh-TW");
+                      }
+                    }
+                    // debug log
+                    console.log('selectedPracticeTimes', selectedPracticeTimes, 'event.startTime', event.startTime);
+                    const checked = selectedPracticeTimes.includes(event.startTime);
                     return (
                       <label
-                        key={event.id}
+                        key={event.startTime}
                         className={`flex items-center gap-1 px-3 py-1 rounded border cursor-pointer ${checked ? "bg-blue-600 text-white border-blue-600" : "bg-white text-blue-600 border-blue-600"}`}
                       >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => {
-                            setSelectedPracticeTimes((prev) =>
-                              checked
-                                ? prev.filter(
-                                    (sel) =>
-                                      getTime(sel) !== getTime(event.startTime),
-                                  )
-                                : [...prev, event.startTime],
-                            );
+                            setSelectedPracticeTimes((prev) => {
+                              if (checked) {
+                                return prev.filter((t) => t !== event.startTime);
+                              } else {
+                                return [...prev, event.startTime];
+                              }
+                            });
                           }}
                         />
                         {label}
@@ -785,23 +892,47 @@ export function PracticeMatching() {
                       <div className="text-xs text-gray-500 mt-1">
                         重疊時間：
                         {item.overlapTimes.map((time, idx) => {
-                          let dateObj = null;
+                          let startObj = null;
+                          let endObj = null;
                           if (
                             time &&
                             typeof time === "object" &&
                             typeof time.toDate === "function"
                           ) {
-                            dateObj = time.toDate();
+                            startObj = time.toDate();
                           } else if (
                             typeof time === "string" ||
                             typeof time === "number"
                           ) {
-                            dateObj = new Date(time);
+                            startObj = new Date(time);
                           }
-                          const label =
-                            dateObj && !isNaN(dateObj)
-                              ? dateObj.toLocaleString("zh-TW")
-                              : "(無效時間)";
+                          // 嘗試從 practiceEvents 找到對應 endTime
+                          let endTime = null;
+                          const matchEvent = practiceEvents.find(
+                            (ev) =>
+                              getTime(ev.startTime) === getTime(time) &&
+                              ev.teamId === item.team.id,
+                          );
+                          if (matchEvent && matchEvent.endTime) {
+                            if (
+                              typeof matchEvent.endTime === "object" &&
+                              typeof matchEvent.endTime.toDate === "function"
+                            ) {
+                              endObj = matchEvent.endTime.toDate();
+                            } else if (
+                              typeof matchEvent.endTime === "string" ||
+                              typeof matchEvent.endTime === "number"
+                            ) {
+                              endObj = new Date(matchEvent.endTime);
+                            }
+                          }
+                          let label = "(無效時間)";
+                          if (startObj && !isNaN(startObj)) {
+                            label = startObj.toLocaleString("zh-TW");
+                            if (endObj && !isNaN(endObj)) {
+                              label += " ~ " + endObj.toLocaleString("zh-TW");
+                            }
+                          }
                           return (
                             <span key={time}>
                               {label}

@@ -541,8 +541,17 @@ function MatchInfoSection({
           </InfoCard>
 
           <InfoCard title="比賽日期時間">
-            <p>📅 {matchInfo.date || "尚未設定"}</p>
-            <p className="mt-1">⏰ {matchInfo.time || "尚未設定"}</p>
+            <p>
+              🕒 時間：
+              {(() => {
+                const start = matchInfo.date
+                  ? matchInfo.date +
+                    (matchInfo.time ? ` ${matchInfo.time}` : "")
+                  : "尚未設定";
+                const end = matchInfo.endTime ? ` ~ ${matchInfo.endTime}` : "";
+                return start + end;
+              })()}
+            </p>
           </InfoCard>
 
           <InfoCard title="場地">

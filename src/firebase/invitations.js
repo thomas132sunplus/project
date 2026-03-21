@@ -6,7 +6,10 @@
 export async function hideInvitation(invitationId) {
   try {
     const docRef = doc(db, COLLECTION_NAME, invitationId);
-    await updateDoc(docRef, { status: "deleted", respondedAt: serverTimestamp() });
+    await updateDoc(docRef, {
+      status: "deleted",
+      respondedAt: serverTimestamp(),
+    });
   } catch (error) {
     console.error("隱藏邀請失敗:", error);
     throw error;
@@ -20,7 +23,12 @@ export async function hideInvitation(invitationId) {
  */
 export async function hideInvitationsBatch(invitationIds) {
   try {
-    const batch = invitationIds.map(id => updateDoc(doc(db, COLLECTION_NAME, id), { status: "deleted", respondedAt: serverTimestamp() }));
+    const batch = invitationIds.map((id) =>
+      updateDoc(doc(db, COLLECTION_NAME, id), {
+        status: "deleted",
+        respondedAt: serverTimestamp(),
+      }),
+    );
     await Promise.all(batch);
   } catch (error) {
     console.error("批次隱藏邀請失敗:", error);
@@ -35,20 +43,30 @@ export async function hideInvitationsBatch(invitationIds) {
  * @param {string} acceptedInvitationId - 已接受的邀請 ID
  * @returns {Promise<void>}
  */
-export async function cancelOtherInvitations(fromTeam, tournamentId, practiceTime, acceptedInvitationId) {
+export async function cancelOtherInvitations(
+  fromTeam,
+  tournamentId,
+  practiceTime,
+  acceptedInvitationId,
+) {
   try {
     const q = query(
       collection(db, COLLECTION_NAME),
       where("fromTeam", "==", fromTeam),
       where("tournamentId", "==", tournamentId),
       where("practiceTime", "==", practiceTime),
-      where("status", "==", "pending")
+      where("status", "==", "pending"),
     );
     const querySnapshot = await getDocs(q);
     const batch = [];
     querySnapshot.forEach((docSnap) => {
       if (docSnap.id !== acceptedInvitationId) {
-        batch.push(updateDoc(doc(db, COLLECTION_NAME, docSnap.id), { status: "cancelled", respondedAt: serverTimestamp() }));
+        batch.push(
+          updateDoc(doc(db, COLLECTION_NAME, docSnap.id), {
+            status: "cancelled",
+            respondedAt: serverTimestamp(),
+          }),
+        );
       }
     });
     await Promise.all(batch);
@@ -90,8 +108,25 @@ const COLLECTION_NAME = "invitations";
  */
 export async function createInvitation(invitationData) {
   try {
+    // 強制轉型 practiceTime/endTime
+    let data = { ...invitationData };
+    if (data.practiceTime) {
+      if (
+        typeof data.practiceTime === "string" ||
+        typeof data.practiceTime === "number"
+      ) {
+        data.practiceTime = new Date(data.practiceTime);
+      }
+    }
+    // 強制要求 endTime 必填
+    if (!data.endTime) {
+      throw new Error("必須指定結束時間 (endTime)");
+    }
+    if (typeof data.endTime === "string" || typeof data.endTime === "number") {
+      data.endTime = new Date(data.endTime);
+    }
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...invitationData,
+      ...data,
       status: "pending",
       createdAt: serverTimestamp(),
     });

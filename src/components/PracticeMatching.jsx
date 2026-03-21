@@ -414,9 +414,16 @@ export function PracticeMatching() {
             (ev) => ev.teamId === defaultTeam.id,
           );
           // 轉成 { ...event, startTime: timestamp }
-          const eventsWithTimestamp = events.map(ev => ({ ...ev, startTime: getTime(ev.startTime) }));
+          const eventsWithTimestamp = events.map((ev) => ({
+            ...ev,
+            startTime: getTime(ev.startTime),
+          }));
           setMyTeamPracticeEvents(eventsWithTimestamp);
-          setSelectedPracticeTimes(eventsWithTimestamp.map((ev) => ev.startTime).filter((t) => t !== null));
+          setSelectedPracticeTimes(
+            eventsWithTimestamp
+              .map((ev) => ev.startTime)
+              .filter((t) => t !== null),
+          );
           return defaultTeam;
         }
         // 若沒切換代表隊伍，只更新事件，不動勾選
@@ -557,9 +564,36 @@ export function PracticeMatching() {
                       </button>
                     )}
                     {/* 加入盃賽按鈕（若有我的隊伍已參賽則顯示已加入） */}
-                    {/* 這裡原本有多餘的註解和錯誤結構，已修正 */}
-                  }
-                })()}
+                    {(() => {
+                      const myTeamIds = myTeams.map((t) => t.id);
+                      const joined = tournament.participatingTeams?.some(
+                        (teamId) => myTeamIds.includes(teamId),
+                      );
+                      return joined ? (
+                        <button
+                          className="ml-2 px-3 py-1 text-sm text-white bg-gray-400 bg-gray-200 rounded cursor-not-allowed"
+                          disabled
+                        >
+                          已經加入盃賽
+                        </button>
+                      ) : (
+                        <button
+                          className="px-3 py-1 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowJoinDialog(true);
+                            setJoinSelectedTeamId("");
+                            const latest =
+                              tournaments.find((t) => t.id === tournament.id) ||
+                              tournament;
+                            setJoinTargetTournament(latest);
+                          }}
+                        >
+                          ＋加入盃賽
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -726,9 +760,16 @@ export function PracticeMatching() {
                   const events = practiceEvents.filter(
                     (ev) => ev.teamId === team.id,
                   );
-                  const eventsWithTimestamp = events.map(ev => ({ ...ev, startTime: getTime(ev.startTime) }));
+                  const eventsWithTimestamp = events.map((ev) => ({
+                    ...ev,
+                    startTime: getTime(ev.startTime),
+                  }));
                   setMyTeamPracticeEvents(eventsWithTimestamp);
-                  setSelectedPracticeTimes(eventsWithTimestamp.map((ev) => ev.startTime).filter((t) => t !== null));
+                  setSelectedPracticeTimes(
+                    eventsWithTimestamp
+                      .map((ev) => ev.startTime)
+                      .filter((t) => t !== null),
+                  );
                 }}
               >
                 {myTeams.map((team) => (
@@ -825,8 +866,15 @@ export function PracticeMatching() {
                       }
                     }
                     // debug log
-                    console.log('selectedPracticeTimes', selectedPracticeTimes, 'event.startTime', event.startTime);
-                    const checked = selectedPracticeTimes.includes(event.startTime);
+                    console.log(
+                      "selectedPracticeTimes",
+                      selectedPracticeTimes,
+                      "event.startTime",
+                      event.startTime,
+                    );
+                    const checked = selectedPracticeTimes.includes(
+                      event.startTime,
+                    );
                     return (
                       <label
                         key={event.startTime}
@@ -838,7 +886,9 @@ export function PracticeMatching() {
                           onChange={() => {
                             setSelectedPracticeTimes((prev) => {
                               if (checked) {
-                                return prev.filter((t) => t !== event.startTime);
+                                return prev.filter(
+                                  (t) => t !== event.startTime,
+                                );
                               } else {
                                 return [...prev, event.startTime];
                               }
@@ -875,12 +925,16 @@ export function PracticeMatching() {
                   <div
                     key={item.team.id}
                     className={`flex items-center p-3 border-2 rounded-lg ${item.checked ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-blue-300"}`}
+                    onClick={() => toggleBatchInviteCandidate(item.team.id)}
+                    style={{ cursor: "pointer" }}
                   >
                     <input
                       type="checkbox"
                       checked={item.checked}
-                      onChange={() => toggleBatchInviteCandidate(item.team.id)}
+                      readOnly
+                      tabIndex={-1}
                       className="w-4 h-4 text-blue-600 cursor-pointer transition"
+                      style={{ pointerEvents: "none" }}
                     />
                     <div className="ml-3 flex-1">
                       <div className="font-semibold text-gray-800">

@@ -91,7 +91,7 @@ export function InviteCodeGate({ children }) {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">邊境之外</h1>
-            <p className="text-gray-600 mb-1">辯論活動管理平台</p>
+            <p className="text-gray-600 mb-1">辯論活動媒合平台</p>
             <div className="inline-block bg-yellow-100 text-yellow-800 text-sm px-3 py-1 rounded-full font-medium">
               🧪 內部測試版
             </div>

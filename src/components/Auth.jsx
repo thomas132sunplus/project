@@ -142,7 +142,7 @@ export function Auth() {
         {/* 標題 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">邊境之外</h1>
-          <p className="text-gray-600">辯論活動管理平台</p>
+          <p className="text-gray-600">辯論活動媒合平台</p>
         </div>
 
         {/* 切換登入/註冊 */}

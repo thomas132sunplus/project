@@ -68,7 +68,7 @@ export function HomePage() {
             邊境之外
           </h1>
           <p className="text-lg md:text-xl text-blue-200 max-w-2xl mx-auto mb-6">
-            辯論活動管理平台 — 盃賽資訊、隊伍協作、練習賽媒合，一站搞定
+            辯論活動媒合平台 — 盃賽資訊、隊伍協作、練習賽媒合，一站搞定
           </p>
           {currentUser && (
             <p className="text-blue-300 text-sm">
@@ -116,7 +116,7 @@ export function HomePage() {
       {/* 底部 */}
       <footer className="border-t border-gray-200 bg-gray-50">
         <div className="container mx-auto px-4 py-6 text-center text-sm text-gray-400">
-          © {new Date().getFullYear()} 邊境之外 — 辯論活動管理平台
+          © {new Date().getFullYear()} 邊境之外 — 辯論活動媒合平台
         </div>
       </footer>
     </div>

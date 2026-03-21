@@ -494,6 +494,26 @@ export function PracticeMatching() {
           跨校練習賽媒合
         </h1>
         <p className="text-gray-600">選擇盃賽，查看參賽隊伍，邀請練習對戰</p>
+        {/* 媒合方法區塊 */}
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded mb-4 mt-4">
+          <h2 className="text-lg font-semibold text-blue-700 mb-1">媒合方法</h2>
+          <div className="text-gray-800 font-medium mb-2">
+            一鍵發送多邀請 + 自動鎖定
+          </div>
+          <ol className="list-decimal list-inside text-gray-700 text-sm space-y-1">
+            <li>
+              【選擇練習賽時間】：來源為
+              <span className="font-semibold">隊伍日曆</span>裡
+              <span className="font-semibold">練習賽</span>事件的時間
+            </li>
+            <li>
+              按下<span className="font-semibold">確認發送邀請</span>
+              後，系統會同時發邀請給選擇的隊伍們
+            </li>
+            <li>第一個接受邀請的 → 直接鎖定，創建練習賽討論區的討論房間</li>
+            <li>其他邀請自動取消</li>
+          </ol>
+        </div>
       </div>
       {/* 未選擇盃賽：顯示盃賽列表 */}
       {!selectedTournament ? (

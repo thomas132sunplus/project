@@ -43,6 +43,20 @@ import { TeamCalendar } from "./TeamCalendar";
 import { notifyTeamMemberAdded } from "../firebase/notificationHelpers";
 
 export function TeamDiscussion() {
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // 複製隊伍代碼到剪貼簿
+  const handleCopyInviteCode = async () => {
+    if (team?.inviteCode) {
+      try {
+        await navigator.clipboard.writeText(team.inviteCode);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 1500);
+      } catch (err) {
+        alert("複製失敗，請手動選取");
+      }
+    }
+  };
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
@@ -71,6 +85,59 @@ export function TeamDiscussion() {
       setError("載入隊伍失敗");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 編輯表單狀態
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    school: "",
+    teamColor: "#3B82F6",
+  });
+  const [editLoading, setEditLoading] = useState(false);
+
+  // 載入隊伍時預設填入編輯表單
+  useEffect(() => {
+    if (team) {
+      setEditForm({
+        name: team.name || "",
+        school: team.school || "",
+        teamColor: team.teamColor || "#3B82F6",
+      });
+    }
+  }, [team]);
+
+  // 編輯表單送出
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editForm.name.trim()) {
+      alert("請輸入隊伍名稱");
+      return;
+    }
+    setEditLoading(true);
+    try {
+      // 權限檢查：僅隊員可編輯（可改為僅隊長）
+      if (!team.members?.includes(currentUser?.uid)) {
+        alert("只有隊伍成員可以編輯隊伍資料");
+        return;
+      }
+      // 呼叫 updateTeam
+      await import("../firebase/teams").then((mod) =>
+        mod.updateTeam(team.id, {
+          name: editForm.name.trim(),
+          school: editForm.school.trim(),
+          teamColor: editForm.teamColor || "#3B82F6",
+        }),
+      );
+      alert("隊伍資料已更新！");
+      setShowEditForm(false);
+      await loadTeam();
+    } catch (err) {
+      console.error("更新隊伍失敗:", err);
+      alert("更新失敗，請稍後再試");
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -111,14 +178,139 @@ export function TeamDiscussion() {
         ← 返回隊伍列表
       </Link>
 
-      {/* 隊伍標題 */}
+      {/* 隊伍標題與編輯功能 */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6">
-        <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-2">
-          {team.name}
-        </h1>
-        <p className="text-sm md:text-base text-gray-600">
-          {team.school} | {team.members?.length || 0} 位隊員
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-2">
+              {team.name}
+            </h1>
+            {/* 隊伍專屬代碼 */}
+            {team.inviteCode && (
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs md:text-sm text-gray-500 select-all">
+                  🆔 隊伍代碼：{team.inviteCode}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition border border-gray-300"
+                  onClick={handleCopyInviteCode}
+                  title="複製隊伍代碼"
+                >
+                  複製
+                </button>
+                {copySuccess && (
+                  <span className="text-green-600 text-xs ml-1">已複製！</span>
+                )}
+              </div>
+            )}
+            <p className="text-sm md:text-base text-gray-600">
+              {team.school} | {team.members?.length || 0} 位隊員
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {/* 僅隊員可見編輯按鈕，可改為僅隊長可見：team.captain === currentUser?.uid */}
+            {team.members?.includes(currentUser?.uid) && (
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition"
+                onClick={() => setShowEditForm(true)}
+              >
+                編輯隊伍資料
+              </button>
+            )}
+            {/* 僅創辦者可見刪除按鈕 */}
+            {team.captain === currentUser?.uid && (
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 transition"
+                onClick={async () => {
+                  if (
+                    window.confirm("確定要刪除這個隊伍嗎？此操作無法復原。")
+                  ) {
+                    try {
+                      const mod = await import("../firebase/teams");
+                      await mod.deleteTeam(team.id);
+                      alert("隊伍已刪除");
+                      window.location.href = "/teams";
+                    } catch (err) {
+                      alert("刪除失敗，請稍後再試");
+                    }
+                  }
+                }}
+                type="button"
+              >
+                刪除隊伍
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 編輯表單 Dialog */}
+        {showEditForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl"
+                onClick={() => setShowEditForm(false)}
+                aria-label="關閉"
+              >
+                ×
+              </button>
+              <h2 className="text-lg font-bold mb-4">編輯隊伍資料</h2>
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 mb-1">隊伍名稱</label>
+                  <input
+                    type="text"
+                    className="w-full border rounded px-3 py-2"
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 mb-1">所屬學校</label>
+                  <input
+                    type="text"
+                    className="w-full border rounded px-3 py-2"
+                    value={editForm.school}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, school: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 mb-1">隊伍代表色</label>
+                  <input
+                    type="color"
+                    className="w-12 h-8 p-0 border-0 bg-transparent cursor-pointer"
+                    value={editForm.teamColor}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, teamColor: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                    onClick={() => setShowEditForm(false)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? "儲存中..." : "儲存"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tab 選單 */}

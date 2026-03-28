@@ -1,3 +1,33 @@
+/**
+ * 通知隊伍成員有新成員加入
+ * @param {string} teamId - 隊伍 ID
+ * @param {string} teamName - 隊伍名稱
+ * @param {string} newMemberName - 新成員名稱
+ * @param {Array<string>} memberIds - 所有隊員 ID（含新成員）
+ * @param {string} newMemberId - 新成員 ID
+ */
+export const notifyTeamMemberAdded = async (
+  teamId,
+  teamName,
+  newMemberName,
+  memberIds,
+  newMemberId,
+) => {
+  try {
+    // 通知所有隊員（排除新成員自己）
+    await createBatchNotifications(
+      memberIds.filter((id) => id !== newMemberId),
+      NOTIFICATION_TYPES.TEAM_MEMBER_ADDED,
+      `${teamName} 有新隊員加入`,
+      `${newMemberName} 已加入隊伍！`,
+      teamId,
+      `/team/${teamId}`,
+      { newMemberId, newMemberName },
+    );
+  } catch (error) {
+    console.error("❌ 發送新隊員加入通知失敗:", error);
+  }
+};
 // 通知觸發幫助函數
 // 封裝常見的通知觸發場景
 
@@ -175,7 +205,9 @@ export const notifyPracticeInvitation = async (
   try {
     const title = `${fromTeamName} 邀請您練習賽`;
     const message = `${fromTeamName} 想與 ${toTeamName} 進行 ${tournamentName} 的練習賽`;
-    const linkTo = toTeamId ? `/team/${toTeamId}?tab=invitations` : "/practice-matches";
+    const linkTo = toTeamId
+      ? `/team/${toTeamId}?tab=invitations`
+      : "/practice-matches";
 
     await createBatchNotifications(
       recipientIds,
@@ -387,29 +419,6 @@ export const notifyFeedback = async (
  * @param {string} addedUserId - 被加入的用戶 ID
  * @param {string} adderName - 執行加入的人名稱
  */
-export const notifyTeamMemberAdded = async (
-  teamId,
-  teamName,
-  addedUserId,
-  adderName,
-) => {
-  try {
-    const title = `你已被加入隊伍`;
-    const message = `${adderName} 將你加入了「${teamName}」`;
-
-    await createBatchNotifications(
-      [addedUserId],
-      NOTIFICATION_TYPES.TEAM_MEMBER_ADDED,
-      title,
-      message,
-      teamId,
-      `/team/${teamId}`,
-      { teamName, adderName },
-    );
-  } catch (error) {
-    console.error("❌ 發送加入隊伍通知失敗:", error);
-  }
-};
 
 /**
  * 獲取隊伍所有成員的 ID

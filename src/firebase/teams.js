@@ -1,3 +1,20 @@
+/**
+ * 以隊伍邀請代碼查詢隊伍
+ * @param {string} inviteCode - 隊伍邀請代碼
+ * @returns {Promise<Object|null>} 查到則回傳隊伍資料，否則回傳 null
+ */
+export async function getTeamByInviteCode(inviteCode) {
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where("inviteCode", "==", inviteCode),
+  );
+  const snapshot = await getDocs(q);
+  if (!snapshot.empty) {
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() };
+  }
+  return null;
+}
 // teams.js - 隊伍相關的 Firestore 操作
 
 import { db } from "./config";
@@ -22,10 +39,34 @@ const COLLECTION_NAME = "teams";
  * @param {Object} teamData - 隊伍資料
  * @returns {Promise<string>} 新隊伍的 ID
  */
+// 產生唯一隊伍代碼
+async function generateUniqueInviteCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 避免易混淆字元
+  let code;
+  let exists = true;
+  while (exists) {
+    code = Array.from(
+      { length: 6 },
+      () => chars[Math.floor(Math.random() * chars.length)],
+    ).join("");
+    // 查詢 Firestore 是否已存在該 inviteCode
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where("inviteCode", "==", code),
+    );
+    const snapshot = await getDocs(q);
+    exists = !snapshot.empty;
+  }
+  return code;
+}
+
 export async function createTeam(teamData) {
   try {
+    // 產生唯一邀請代碼
+    const inviteCode = await generateUniqueInviteCode();
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...teamData,
+      inviteCode,
       members: teamData.members || [],
       tournaments: teamData.tournaments || [],
       teamColor: teamData.teamColor || "#3B82F6",

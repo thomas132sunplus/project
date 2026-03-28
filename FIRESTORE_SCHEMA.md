@@ -55,6 +55,7 @@ firestore/
 ```javascript
 {
   id: "team_001",
+  inviteCode: "8X2K9Q", // 隊伍邀請代碼（唯一，供隊員加入）
   name: "辯士學校辯論隊 A",              // 隊伍名稱
   school: "辯士學校",                // 學校
   members: ["user_001", "user_002", "user_003", "user_004"], // 隊員 IDs

@@ -117,17 +117,20 @@ export function TeamDiscussion() {
     }
     setEditLoading(true);
     try {
-      // 權限檢查：僅隊員可編輯（可改為僅隊長）
-      if (!team.members?.includes(currentUser?.uid)) {
-        alert("只有隊伍成員可以編輯隊伍資料");
+      // 權限檢查：僅隊長可編輯隊伍資料
+      if (team.captain !== currentUser?.uid) {
+        alert("只有隊長可以編輯隊伍資料");
         return;
       }
       // 呼叫 updateTeam
+      const safeColor = /^#[0-9a-fA-F]{6}$/.test(editForm.teamColor)
+        ? editForm.teamColor
+        : "#3B82F6";
       await import("../firebase/teams").then((mod) =>
         mod.updateTeam(team.id, {
           name: editForm.name.trim(),
           school: editForm.school.trim(),
-          teamColor: editForm.teamColor || "#3B82F6",
+          teamColor: safeColor,
         }),
       );
       alert("隊伍資料已更新！");

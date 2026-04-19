@@ -59,7 +59,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if signedIn();
+      allow get: if signedIn();
+      allow list: if isAdmin();
       // create: 只能建立自己的文件，role 必須是 'debater'，不得含測試標記欄位
       allow create: if isSelf(userId)
                     && request.resource.data.role == 'debater'
@@ -78,8 +79,11 @@ service cloud.firestore {
       // create: 建立者必須在 members 裡面
       allow create: if signedIn()
         && request.auth.uid in request.resource.data.members;
-      // update: 只有現有成員或 admin 可更新
-      allow update: if (signedIn() && request.auth.uid in resource.data.members) || isAdmin();
+      // update: 隊長可改所有欄位；成員只能改 members（加入/離開）
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == resource.data.captain)
+        || (signedIn() && request.auth.uid in resource.data.members
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']));
       // delete: 只有隊長或 admin 可刪除
       allow delete: if (signedIn() && request.auth.uid == resource.data.captain) || isAdmin();
     }
@@ -108,8 +112,7 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if signedIn()
         && (
-          !('createdBy' in resource.data)
-          || resource.data.createdBy == request.auth.uid
+          resource.data.createdBy == request.auth.uid
           || isAdmin()
         );
     }
@@ -148,7 +151,11 @@ service cloud.firestore {
         );
 
       match /messages/{messageId} {
-        allow read: if signedIn();
+        allow read: if signedIn()
+          && (
+            get(/databases/$(database)/documents/practiceMatches/$(matchId)).data.createdBy == request.auth.uid
+            || isAdmin()
+          );
         allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
         allow update, delete: if signedIn()
           && (
@@ -251,7 +258,8 @@ service cloud.firestore {
       allow read: if isTeamMember(resource.data.teamId) || isAdmin();
       allow create: if isTeamMember(request.resource.data.teamId)
         && request.resource.data.creatorId == request.auth.uid;
-      allow update, delete: if isTeamMember(resource.data.teamId) || isAdmin();
+      allow update, delete: if signedIn()
+        && (resource.data.creatorId == request.auth.uid || isAdmin());
     }
 
     match /team_availability/{availabilityId} {
@@ -312,7 +320,12 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow read: if signedIn();
+      // read: 只能讀取自己的訊息或 admin
+      allow read: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
       // create: 只能以自己的身份發送
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid;
@@ -329,8 +342,13 @@ service cloud.firestore {
       // create: 必須記錄建立者為自己
       allow create: if signedIn()
         && request.resource.data.createdBy == request.auth.uid;
-      // update: 任何登入用戶可加入/離開房間；delete: 只有建立者或 admin
-      allow update: if signedIn();
+      // update: 房間建立者或現有參與者可更新；delete: 只有建立者或 admin
+      allow update: if signedIn()
+        && (
+          resource.data.createdBy == request.auth.uid
+          || request.auth.uid in resource.data.participants
+          || isAdmin()
+        );
       allow delete: if signedIn()
         && (
           resource.data.createdBy == request.auth.uid
@@ -338,15 +356,27 @@ service cloud.firestore {
         );
 
       match /offers/{offerId} {
-        allow read, write: if signedIn();
+        allow read, write: if signedIn()
+          && (
+            request.auth.uid in get(/databases/$(database)/documents/voice_rooms/$(roomId)).data.participants
+            || get(/databases/$(database)/documents/voice_rooms/$(roomId)).data.createdBy == request.auth.uid
+          );
       }
 
       match /answers/{answerId} {
-        allow read, write: if signedIn();
+        allow read, write: if signedIn()
+          && (
+            request.auth.uid in get(/databases/$(database)/documents/voice_rooms/$(roomId)).data.participants
+            || get(/databases/$(database)/documents/voice_rooms/$(roomId)).data.createdBy == request.auth.uid
+          );
       }
 
       match /ice_candidates/{candidateId} {
-        allow read, write: if signedIn();
+        allow read, write: if signedIn()
+          && (
+            request.auth.uid in get(/databases/$(database)/documents/voice_rooms/$(roomId)).data.participants
+            || get(/databases/$(database)/documents/voice_rooms/$(roomId)).data.createdBy == request.auth.uid
+          );
       }
     }
 

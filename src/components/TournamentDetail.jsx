@@ -132,12 +132,14 @@ export function TournamentDetail() {
             {tournament.name || "未命名盃賽"}
           </h1>
           <div className="flex gap-2">
-            <Link
-              to={`/tournament/${id}/edit`}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-            >
-              ✏️ 編輯
-            </Link>
+            {(currentUser?.uid === tournament.createdBy || false) && (
+              <Link
+                to={`/tournament/${id}/edit`}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                ✏️ 編輯
+              </Link>
+            )}
             {currentUser?.uid === tournament.createdBy && (
               <button
                 onClick={handleDelete}

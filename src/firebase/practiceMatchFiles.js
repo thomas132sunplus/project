@@ -30,6 +30,14 @@ const FILES_COLLECTION = "practice_match_files";
  */
 export async function uploadFile(matchId, file, uploaderData) {
   try {
+    // 客戶端預檢：檔案大小和類型
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error("檔案大小不得超過 10MB");
+    }
+    if (!/^(image|audio|video|application\/pdf|text)\//.test(file.type)) {
+      throw new Error("不支援的檔案類型");
+    }
+
     // 1. 上傳文件到 Storage
     const timestamp = Date.now();
     const fileName = `${timestamp}_${file.name}`;

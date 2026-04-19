@@ -32,7 +32,13 @@ const RECORDINGS_COLLECTION = "team_recordings";
  * @returns {Promise<Object>} 錄音記錄
  */
 export async function uploadTeamRecording(teamId, audioFile, metadata) {
-  console.log("開始上傳隊伍錄音:", audioFile.name);
+  // 客戶端預檢：檔案大小和類型
+  if (audioFile.size > 10 * 1024 * 1024) {
+    throw new Error("錄音檔案大小不得超過 10MB");
+  }
+  if (!/^(audio|video)\//.test(audioFile.type)) {
+    throw new Error("不支援的錄音檔案類型");
+  }
 
   // 上傳到 Storage
   const timestamp = Date.now();

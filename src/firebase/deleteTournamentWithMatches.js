@@ -1,7 +1,7 @@
 // deleteTournamentWithMatches.js
 // 刪除盃賽並連帶刪除所有相關練習賽房間、訊息、文件
 
-import { deleteTournament } from "./tournaments";
+import { deleteTournament, getTournament } from "./tournaments";
 import { getTournamentMatches } from "./practiceMatches";
 import { deletePracticeMatch } from "./practiceMatches";
 import { getMessages } from "./practiceMatchMessages";
@@ -12,8 +12,14 @@ import { db } from "./config";
 /**
  * 刪除盃賽及其所有相關練習賽房間、訊息、文件
  * @param {string} tournamentId
+ * @param {string} currentUserId - 當前用戶 UID，用於授權驗證
  */
-export async function deleteTournamentWithMatches(tournamentId) {
+export async function deleteTournamentWithMatches(tournamentId, currentUserId) {
+  // 授權檢查：確認呼叫者是盃賽建立者
+  const tournament = await getTournament(tournamentId);
+  if (!tournament || tournament.createdBy !== currentUserId) {
+    throw new Error("無權限刪除此盃賽");
+  }
   // 1. 取得所有相關練習賽
   const matches = await getTournamentMatches(tournamentId);
   for (const match of matches) {

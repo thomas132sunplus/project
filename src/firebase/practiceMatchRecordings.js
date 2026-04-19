@@ -36,6 +36,14 @@ export async function uploadRecording(
   metadata = {},
 ) {
   try {
+    // 客戶端預檢：檔案大小和類型
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error("錄音檔案大小不得超過 10MB");
+    }
+    if (!/^(audio|video)\//.test(file.type)) {
+      throw new Error("不支援的錄音檔案類型");
+    }
+
     // 1. 上傳錄音到 Storage
     const timestamp = Date.now();
     const fileName = `${timestamp}_${file.name}`;

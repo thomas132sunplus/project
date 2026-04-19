@@ -31,7 +31,13 @@ const FILES_COLLECTION = "team_files";
  * @returns {Promise<Object>} 文件記錄
  */
 export async function uploadTeamFile(teamId, file, userInfo) {
-  console.log("開始上傳隊伍文件:", file.name);
+  // 客戶端預檢：檔案大小和類型
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("檔案大小不得超過 10MB");
+  }
+  if (!/^(image|audio|video|application\/pdf|text)\//.test(file.type)) {
+    throw new Error("不支援的檔案類型");
+  }
 
   // 上傳到 Storage
   const timestamp = Date.now();

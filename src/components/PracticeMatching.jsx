@@ -570,7 +570,10 @@ export function PracticeMatching() {
                           e.stopPropagation();
                           if (!window.confirm("確定要刪除此盃賽嗎？")) return;
                           try {
-                            await deleteTournamentWithMatches(tournament.id);
+                            await deleteTournamentWithMatches(
+                              tournament.id,
+                              currentUser.uid,
+                            );
                             alert("盃賽及相關練習賽房間已刪除");
                             setTournaments(
                               tournaments.filter((t) => t.id !== tournament.id),

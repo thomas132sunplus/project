@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getActivityById } from "../firebase/activities";
 
+const isSafeUrl = (url) => /^https?:\/\//i.test(url);
+
 export function ActivityDetail() {
   const { id } = useParams(); // 從網址取得活動 ID
   const navigate = useNavigate(); // 用於頁面導航
@@ -193,7 +195,7 @@ export function ActivityDetail() {
             <h2 className="text-xl font-bold text-gray-800 mb-4">外部連結</h2>
             <div className="space-y-3">
               {/* LINE 群組連結 */}
-              {activity.links.line && (
+              {activity.links.line && isSafeUrl(activity.links.line) && (
                 <a
                   href={activity.links.line}
                   target="_blank"
@@ -226,7 +228,7 @@ export function ActivityDetail() {
               )}
 
               {/* Discord 頻道連結 */}
-              {activity.links.discord && (
+              {activity.links.discord && isSafeUrl(activity.links.discord) && (
                 <a
                   href={activity.links.discord}
                   target="_blank"
@@ -261,7 +263,7 @@ export function ActivityDetail() {
               )}
 
               {/* 視訊會議連結 */}
-              {activity.links.meeting && (
+              {activity.links.meeting && isSafeUrl(activity.links.meeting) && (
                 <a
                   href={activity.links.meeting}
                   target="_blank"

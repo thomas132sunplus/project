@@ -78,8 +78,10 @@ service cloud.firestore {
       // create: 建立者必須在 members 裡面
       allow create: if signedIn()
         && request.auth.uid in request.resource.data.members;
-      // update: 只有現有成員或 admin 可更新；不得把自己以外的現有成員移除
-      allow update, delete: if (signedIn() && request.auth.uid in resource.data.members) || isAdmin();
+      // update: 只有現有成員或 admin 可更新
+      allow update: if (signedIn() && request.auth.uid in resource.data.members) || isAdmin();
+      // delete: 只有隊長或 admin 可刪除
+      allow delete: if (signedIn() && request.auth.uid == resource.data.captain) || isAdmin();
     }
 
     match /tournaments/{tournamentId} {
@@ -128,8 +130,15 @@ service cloud.firestore {
       }
     }
 
+    // practiceMatches（舊集合）：收緊為 createdBy 擁有者或參與者才可讀取
     match /practiceMatches/{matchId} {
-      allow read: if signedIn();
+      allow read: if signedIn()
+        && (
+          resource.data.createdBy == request.auth.uid
+          || (resource.data.affirmativeTeam is string && isTeamMember(resource.data.affirmativeTeam))
+          || (resource.data.negativeTeam is string && isTeamMember(resource.data.negativeTeam))
+          || isAdmin()
+        );
       allow create: if signedIn()
         && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if signedIn()
@@ -292,10 +301,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // 邀請碼：任何人可讀取驗證，匿名可遞增使用次數，只有 admin 可管理
+    // 邀請碼：只允許按 ID 取得單一文件（防枚舉），不允許 list 查詢
     match /invite_codes/{codeId} {
-      allow read: if true;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usageCount']);
+      allow get: if true;
+      allow list: if false;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usageCount'])
+        && request.resource.data.usageCount == resource.data.usageCount + 1;
       allow create, delete: if isAdmin();
     }
 

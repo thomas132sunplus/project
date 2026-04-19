@@ -815,23 +815,25 @@ export function PracticeMatching() {
               <h3 className="text-lg font-bold text-gray-800 mb-4">
                 參賽隊伍循環圖
               </h3>
-              {selectedTournament.bracketImage && (
-                <img
-                  src={selectedTournament.bracketImage}
-                  alt="參賽隊伍循環圖"
-                  className="max-w-full h-auto rounded border mb-4"
-                />
-              )}
-              {selectedTournament.bracketLink && (
-                <a
-                  href={selectedTournament.bracketLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  在新分頁查看循環圖 →
-                </a>
-              )}
+              {selectedTournament.bracketImage &&
+                /^https?:\/\//i.test(selectedTournament.bracketImage) && (
+                  <img
+                    src={selectedTournament.bracketImage}
+                    alt="參賽隊伍循環圖"
+                    className="max-w-full h-auto rounded border mb-4"
+                  />
+                )}
+              {selectedTournament.bracketLink &&
+                /^https?:\/\//i.test(selectedTournament.bracketLink) && (
+                  <a
+                    href={selectedTournament.bracketLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    在新分頁查看循環圖 →
+                  </a>
+                )}
             </div>
           )}
 

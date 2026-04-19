@@ -2,28 +2,18 @@
 // 透過 Firestore 後端驗證邀請碼，避免硬編碼在前端
 
 import { useState, useEffect } from "react";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  updateDoc,
-  doc,
-  increment,
-} from "firebase/firestore";
+import { getDoc, updateDoc, doc, increment } from "firebase/firestore";
 import { db } from "../firebase/config";
 
-// 從 Firestore invite_codes 集合驗證邀請碼
+// 從 Firestore invite_codes 集合驗證邀請碼（使用 getDoc 而非 query，配合 list: if false 規則防止枚舉）
 async function verifyInviteCode(code) {
-  const q = query(
-    collection(db, "invite_codes"),
-    where("code", "==", code),
-    where("active", "==", true),
-  );
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return false;
+  const docId = code.toLowerCase().replace(/\s+/g, "-");
+  const docRef = doc(db, "invite_codes", docId);
+  const snapshot = await getDoc(docRef);
+  if (!snapshot.exists()) return false;
+  const data = snapshot.data();
+  if (!data.active || data.code !== code) return false;
   // 更新使用次數
-  const docRef = snapshot.docs[0].ref;
   await updateDoc(docRef, { usageCount: increment(1) });
   return true;
 }

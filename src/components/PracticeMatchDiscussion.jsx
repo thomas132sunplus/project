@@ -869,21 +869,15 @@ function ChatSection({ matchId }) {
 
   useEffect(() => {
     // 訂閱聊天訊息
-    console.log("=== 訂閱聊天訊息 ===");
-    console.log("matchId:", matchId);
-
     try {
       const unsubscribe = subscribeToMessages(matchId, (msgs) => {
-        console.log("收到訊息：", msgs.length, "則訊息");
         setMessages(msgs);
       });
 
       return () => {
-        console.log("取消訂閱聊天訊息");
         unsubscribe();
       };
     } catch (error) {
-      console.error("訂閱失敗", error);
       alert("無法訂閱聊天訊息，請檢查網絡連接後重試。");
     }
   }, [matchId]);
@@ -897,14 +891,8 @@ function ChatSection({ matchId }) {
     e.preventDefault();
     if (!newMessage.trim() || loading) return;
 
-    console.log("=== 準備發送訊息 ===");
-    console.log("訊息內容:", newMessage.trim());
-    console.log("matchId:", matchId);
-    console.log("currentUser:", currentUser);
-
     try {
       setLoading(true);
-      console.log("呼叫 sendMessage...");
 
       const messageId = await sendMessage(matchId, {
         text: newMessage.trim(),
@@ -915,8 +903,6 @@ function ChatSection({ matchId }) {
 
       setNewMessage("");
     } catch (error) {
-      console.error("發送訊息失敗", error);
-
       let errorMsg = "發送訊息失敗";
       if (error.code === "permission-denied") {
         errorMsg =

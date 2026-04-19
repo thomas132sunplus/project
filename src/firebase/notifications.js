@@ -32,6 +32,7 @@ export const NOTIFICATION_TYPES = {
   MATCH_CANCEL_REQUEST: "match_cancel_request",
   MATCH_CANCELLED: "match_cancelled",
   TEAM_MEMBER_ADDED: "team_member_added",
+  ANNOUNCEMENT: "announcement",
 };
 
 // 通知類型的顯示配置
@@ -100,6 +101,11 @@ export const NOTIFICATION_CONFIG = {
     icon: "❌",
     color: "red",
     label: "練習賽取消",
+  },
+  [NOTIFICATION_TYPES.ANNOUNCEMENT]: {
+    icon: "📢",
+    color: "blue",
+    label: "新公告",
   },
 };
 

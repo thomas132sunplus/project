@@ -36,7 +36,7 @@ import {
   createBatchNotifications,
   NOTIFICATION_TYPES,
 } from "./notifications";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 import { db } from "./config";
 
 /**
@@ -560,5 +560,38 @@ export const getMatchParticipantIds = async (matchId) => {
   } catch (error) {
     console.error("❌ 獲取練習賽參與者失敗:", error);
     return [];
+  }
+};
+
+/**
+ * 發送新公告通知給所有用戶
+ * @param {string} announcementTitle - 公告標題
+ * @param {string} senderId - 發布者（admin）的 UID，會被排除
+ */
+export const notifyNewAnnouncement = async (announcementTitle, senderId) => {
+  try {
+    const usersSnap = await getDocs(collection(db, "users"));
+    const allUserIds = usersSnap.docs
+      .map((d) => d.id)
+      .filter((id) => id !== senderId);
+
+    if (allUserIds.length === 0) return;
+
+    const title = "📢 新公告";
+    const message =
+      announcementTitle.length > 50
+        ? announcementTitle.substring(0, 50) + "..."
+        : announcementTitle;
+
+    await createBatchNotifications(
+      allUserIds,
+      NOTIFICATION_TYPES.ANNOUNCEMENT,
+      title,
+      message,
+      null,
+      "/announcements",
+    );
+  } catch (error) {
+    console.error("❌ 發送新公告通知失敗:", error);
   }
 };

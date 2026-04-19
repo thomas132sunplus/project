@@ -10,6 +10,7 @@ import {
   createAnnouncement,
   deleteAnnouncement,
 } from "../firebase/announcements";
+import { notifyNewAnnouncement } from "../firebase/notificationHelpers";
 
 export function Announcements() {
   const { currentUser } = useAuth();
@@ -68,6 +69,7 @@ export function Announcements() {
       setSubmitting(true);
       setFormError("");
       await createAnnouncement({ title, content });
+      notifyNewAnnouncement(title.trim(), currentUser.uid);
       setTitle("");
       setContent("");
       setShowForm(false);

@@ -25,11 +25,6 @@ const COLLECTION_NAME = "practice_matches";
  */
 export async function createPracticeMatch(matchData, userId) {
   try {
-    console.log("createPracticeMatch - 開始創建練習賽");
-    console.log("matchData:", matchData);
-    console.log("userId:", userId);
-    console.log("COLLECTION_NAME:", COLLECTION_NAME);
-
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...matchData,
       status: "scheduled",
@@ -47,7 +42,6 @@ export async function createPracticeMatch(matchData, userId) {
       createdBy: userId,
       updatedAt: serverTimestamp(),
     });
-    console.log("createPracticeMatch - 創建成功，ID:", docRef.id);
     return docRef.id;
   } catch (error) {
     console.error("建立練習賽失敗:", error);

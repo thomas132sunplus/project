@@ -5,10 +5,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { getTournament, deleteTournament } from "../firebase/tournaments";
 import { getTeam } from "../firebase/teams";
+import { useAuth } from "../contexts/AuthContext";
 
 export function TournamentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

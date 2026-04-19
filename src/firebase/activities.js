@@ -1,22 +1,22 @@
 // Firestore 資料庫操作函式
 // 這個檔案包含所有與 activities collection 相關的 CRUD 操作
 
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  getDoc, 
-  doc, 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  getDoc,
+  doc,
   deleteDoc,
   updateDoc,
   Timestamp,
   orderBy,
-  query
-} from 'firebase/firestore';
-import { db } from './config';
+  query,
+} from "firebase/firestore";
+import { db } from "./config";
 
 // Collection 名稱
-const ACTIVITIES_COLLECTION = 'activities';
+const ACTIVITIES_COLLECTION = "activities";
 
 /**
  * 取得所有活動
@@ -27,22 +27,22 @@ export const getAllActivities = async () => {
     // 建立查詢，按日期排序
     const q = query(
       collection(db, ACTIVITIES_COLLECTION),
-      orderBy('date', 'desc')
+      orderBy("date", "desc"),
     );
-    
+
     const querySnapshot = await getDocs(q);
     const activities = [];
-    
+
     querySnapshot.forEach((doc) => {
       activities.push({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       });
     });
-    
+
     return activities;
   } catch (error) {
-    console.error('取得活動列表時發生錯誤：', error);
+    console.error("取得活動列表時發生錯誤：", error);
     throw error;
   }
 };
@@ -56,17 +56,17 @@ export const getActivityById = async (activityId) => {
   try {
     const docRef = doc(db, ACTIVITIES_COLLECTION, activityId);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
-        ...docSnap.data()
+        ...docSnap.data(),
       };
     } else {
-      throw new Error('找不到此活動');
+      throw new Error("找不到此活動");
     }
   } catch (error) {
-    console.error('取得活動詳細資訊時發生錯誤：', error);
+    console.error("取得活動詳細資訊時發生錯誤：", error);
     throw error;
   }
 };
@@ -81,13 +81,12 @@ export const createActivity = async (activityData) => {
     // 新增活動到 Firestore
     const docRef = await addDoc(collection(db, ACTIVITIES_COLLECTION), {
       ...activityData,
-      createdAt: Timestamp.now() // 加入建立時間戳記
+      createdAt: Timestamp.now(), // 加入建立時間戳記
     });
-    
-    console.log('活動建立成功，ID：', docRef.id);
+
     return docRef.id;
   } catch (error) {
-    console.error('建立活動時發生錯誤：', error);
+    console.error("建立活動時發生錯誤：", error);
     throw error;
   }
 };
@@ -103,12 +102,12 @@ export const updateActivity = async (activityId, updatedData) => {
     const docRef = doc(db, ACTIVITIES_COLLECTION, activityId);
     await updateDoc(docRef, {
       ...updatedData,
-      updatedAt: Timestamp.now() // 加入更新時間戳記
+      updatedAt: Timestamp.now(), // 加入更新時間戳記
     });
-    
-    console.log('活動更新成功');
+
+    console.log("活動更新成功");
   } catch (error) {
-    console.error('更新活動時發生錯誤：', error);
+    console.error("更新活動時發生錯誤：", error);
     throw error;
   }
 };
@@ -121,9 +120,9 @@ export const updateActivity = async (activityId, updatedData) => {
 export const deleteActivity = async (activityId) => {
   try {
     await deleteDoc(doc(db, ACTIVITIES_COLLECTION, activityId));
-    console.log('活動刪除成功');
+    console.log("活動刪除成功");
   } catch (error) {
-    console.error('刪除活動時發生錯誤：', error);
+    console.error("刪除活動時發生錯誤：", error);
     throw error;
   }
 };

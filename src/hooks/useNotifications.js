@@ -32,15 +32,9 @@ export const useNotifications = () => {
     }
 
     setLoading(true);
-    console.log("[Notifications] 開始監聽通知, userId:", currentUser.uid);
     const unsubscribe = subscribeToNotifications(
       currentUser.uid,
       (newNotifications) => {
-        console.log(
-          "[Notifications] 收到通知更新:",
-          newNotifications.length,
-          "條",
-        );
         setNotifications(newNotifications);
         const unread = newNotifications.filter((n) => !n.isRead).length;
         setUnreadCount(unread);

@@ -107,7 +107,7 @@ export default function Guide() {
     <div className="max-w-3xl mx-auto py-8 px-4">
       <h1 className="text-2xl font-bold mb-6 text-center">新手導覽</h1>
       <div className="mb-2 text-xs text-gray-500 text-center">
-        <span>目前登入：{currentUser?.email || "未登入"}</span>
+        <span>目前登入：{currentUser?.displayName || "未登入"}</span>
       </div>
       <div className="flex justify-end mb-2">
         {isEditor && (

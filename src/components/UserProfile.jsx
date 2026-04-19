@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { getUser, updateUser, createOrUpdateUser } from "../firebase/users";
+import { deleteAccount } from "../firebase/auth";
 import { getUserTeams } from "../firebase/teams";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -13,6 +14,7 @@ export function UserProfile() {
   const [showProfileDetail, setShowProfileDetail] = useState(false);
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("teams"); // teams, calendar
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [userData, setUserData] = useState(null);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -256,7 +258,7 @@ export function UserProfile() {
                 </label>
                 <input
                   type="text"
-                  placeholder="字頭"
+                  placeholder="2字"
                   value={editForm.grade}
                   onChange={(e) =>
                     handleEditFormChange("grade", e.target.value)
@@ -327,23 +329,41 @@ export function UserProfile() {
       {/* Tab 選單 */}
       <div className="bg-white rounded-lg shadow-md">
         <div className="flex border-b overflow-x-auto">
-          <TabButton
-            label="👥 我的隊伍"
-            active={activeTab === "teams"}
-            onClick={() => setActiveTab("teams")}
-          />
-          <TabButton
-            label="📅 個人日曆"
-            active={activeTab === "calendar"}
-            onClick={() => setActiveTab("calendar")}
-          />
+          <TabButton label="👥 我的隊伍" active={activeTab === "teams"} onClick={() => setActiveTab("teams")} />
+          <TabButton label="📅 個人日曆" active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")} />
         </div>
-
-        {/* Tab 內容 */}
         <div className="p-3 md:p-6">
           {activeTab === "teams" && <TeamsSection teams={teams} />}
           {activeTab === "calendar" && <CalendarSection />}
         </div>
+      </div>
+
+      {/* 危险區域：刪除帳號 */}
+      <div className="mt-8 border border-red-200 rounded-lg p-5 bg-red-50">
+        <h3 className="text-red-700 font-bold mb-2">危险區域</h3>
+        <p className="text-sm text-red-600 mb-4">刪除帳號後，您的所有個人資料將被永久刪除且無法回復。隊伍相關資料（討論記錄等）將保留。</p>
+        <button
+          onClick={async () => {
+            if (!window.confirm("確定要刪除帳號？此操作無法復原。")) return;
+            if (!window.confirm("再次確認：您的所有個人資料將被永久刪除。")) return;
+            try {
+              setDeletingAccount(true);
+              await deleteAccount(currentUser.uid);
+              // 會自動登出，導航到登入頁
+            } catch (err) {
+              if (err.code === "auth/requires-recent-login") {
+                alert("安全起見，請先登出後重新登入，再嘗試刪除。");
+              } else {
+                alert("刪除失敗，請稍後再試。");
+              }
+              setDeletingAccount(false);
+            }
+          }}
+          disabled={deletingAccount}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium disabled:bg-gray-400"
+        >
+          {deletingAccount ? "刪除中..." : "🗑️ 刪除我的帳號"}
+        </button>
       </div>
     </div>
   );

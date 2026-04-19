@@ -1,191 +1,299 @@
-// Firestore 安全規則範例
-// 這個檔案用於設定 Firestore 的存取權限
-// 複製內容到 Firebase Console > Firestore Database > 規則
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // guide_topics collection 規則（新手導覽）
-    match /guide_topics/{topicId} {
-      allow read, create, update, delete: if request.auth != null;
+    function signedIn() {
+      return request.auth != null;
     }
-    
-    // users collection 規則
+
+    function currentUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(currentUserPath())
+        && get(currentUserPath()).data.role == 'admin';
+    }
+
+    function teamPath(teamId) {
+      return /databases/$(database)/documents/teams/$(teamId);
+    }
+
+    function isTeamMember(teamId) {
+      return signedIn()
+        && teamId is string
+        && exists(teamPath(teamId))
+        && request.auth.uid in get(teamPath(teamId)).data.members;
+    }
+
+    function invitationParticipant(data) {
+      return signedIn()
+        && (
+          (data.fromTeam is string && isTeamMember(data.fromTeam))
+          || (data.toTeam is string && isTeamMember(data.toTeam))
+        );
+    }
+
+    function matchParticipant(data) {
+      return signedIn()
+        && (
+          (data.createdBy is string && data.createdBy == request.auth.uid)
+          || (data.affirmativeTeam is string && isTeamMember(data.affirmativeTeam))
+          || (data.negativeTeam is string && isTeamMember(data.negativeTeam))
+        );
+    }
+
+    function matchPath(matchId) {
+      return /databases/$(database)/documents/practice_matches/$(matchId);
+    }
+
+    function canAccessMatchById(matchId) {
+      return signedIn()
+        && matchId is string
+        && exists(matchPath(matchId))
+        && matchParticipant(get(matchPath(matchId)).data);
+    }
+
     match /users/{userId} {
-      allow read: if true;
-      allow create, update: if request.auth != null;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if signedIn();
+      allow create: if isSelf(userId);
+      allow update: if isSelf(userId) || isAdmin();
+      allow delete: if false;
     }
-    
-    // teams collection 規則
+
     match /teams/{teamId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
-      
-      // teams 子集合規則
-      match /recordings/{recordingId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null;
-        allow update, delete: if request.auth != null;
-      }
+      allow read: if (signedIn() && request.auth.uid in resource.data.members) || isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if (signedIn() && request.auth.uid in resource.data.members) || isAdmin();
     }
-    
-    // tournaments collection 規則
+
     match /tournaments/{tournamentId} {
-      allow read: if true;
-      allow create, update, delete: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if signedIn()
+        && (
+          resource.data.createdBy == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // invitations collection 規則
-    match /invitations/{invitationId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+
+    match /announcements/{announcementId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
     }
-    
-    // activities collection 規則（舊的相容）
+
     match /activities/{activityId} {
-      allow read: if true;
-      allow create, update, delete: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if signedIn()
+        && (
+          !('createdBy' in resource.data)
+          || resource.data.createdBy == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // messages collection 規則（聊天訊息）
-    match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+
+    match /invitations/{invitationId} {
+      allow read: if invitationParticipant(resource.data) || isAdmin();
+      allow create: if invitationParticipant(request.resource.data) || isAdmin();
+      allow update, delete: if invitationParticipant(resource.data) || isAdmin();
     }
-    
-    // practice_matches collection 規則（練習賽）
+
     match /practice_matches/{matchId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
-      
-      // practice_matches 子集合規則
+      allow read: if matchParticipant(resource.data) || isAdmin();
+      allow create: if matchParticipant(request.resource.data) || isAdmin();
+      allow update, delete: if matchParticipant(resource.data) || isAdmin();
+
       match /recordings/{recordingId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null;
-        allow update, delete: if request.auth != null;
+        allow read, create, update, delete: if canAccessMatchById(matchId) || isAdmin();
       }
     }
-    
-    // feedback collection 規則（反饋）
-    match /feedback/{feedbackId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+
+    match /practiceMatches/{matchId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if signedIn()
+        && (
+          resource.data.createdBy == request.auth.uid
+          || isAdmin()
+        );
+
+      match /messages/{messageId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if signedIn()
+          && (
+            resource.data.authorId == request.auth.uid
+            || isAdmin()
+          );
+      }
     }
-    
-    // practice_match_messages collection 規則（練習賽聊天訊息）
+
     match /practice_match_messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if canAccessMatchById(resource.data.matchId) || isAdmin();
+      allow create: if canAccessMatchById(request.resource.data.matchId)
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // practice_match_files collection 規則（練習賽資料文件）
+
     match /practice_match_files/{fileId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if canAccessMatchById(resource.data.matchId) || isAdmin();
+      allow create: if canAccessMatchById(request.resource.data.matchId)
+        && request.resource.data.uploaderId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.uploaderId == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // practice_match_recordings collection 規則（練習賽錄音）
+
     match /practice_match_recordings/{recordingId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if canAccessMatchById(resource.data.matchId) || isAdmin();
+      allow create: if canAccessMatchById(request.resource.data.matchId)
+        && request.resource.data.uploaderId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.uploaderId == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // practice_match_calls collection 規則（練習賽通話/視訊）
+
     match /practice_match_calls/{callId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if canAccessMatchById(resource.data.matchId) || isAdmin();
+      allow create: if canAccessMatchById(request.resource.data.matchId)
+        && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.creatorId == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // team_messages collection 規則（隊伍聊天訊息）
+
     match /team_messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if isTeamMember(resource.data.teamId) || isAdmin();
+      allow create: if isTeamMember(request.resource.data.teamId)
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
+      allow update: if false;
     }
-    
-    // team_files collection 規則（隊伍文件）
+
     match /team_files/{fileId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if isTeamMember(resource.data.teamId) || isAdmin();
+      allow create: if isTeamMember(request.resource.data.teamId)
+        && request.resource.data.uploadedBy == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.uploadedBy == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // team_recordings collection 規則（隊伍錄音）
+
     match /team_recordings/{recordingId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if isTeamMember(resource.data.teamId) || isAdmin();
+      allow create: if isTeamMember(request.resource.data.teamId)
+        && request.resource.data.uploadedBy == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.uploadedBy == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // team_calls collection 規則（隊伍通話/視訊）
+
     match /team_calls/{callId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if isTeamMember(resource.data.teamId) || isAdmin();
+      allow create: if isTeamMember(request.resource.data.teamId)
+        && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.creatorId == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // team_events collection 規則（隊伍日曆事件）
+
     match /team_events/{eventId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if isTeamMember(resource.data.teamId) || isAdmin();
+      allow create: if isTeamMember(request.resource.data.teamId)
+        && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if isTeamMember(resource.data.teamId) || isAdmin();
     }
-    
-    // team_availability collection 規則（隊員可用時間）
+
     match /team_availability/{availabilityId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if isTeamMember(resource.data.teamId) || isAdmin();
+      allow create: if isTeamMember(request.resource.data.teamId)
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
     }
-    
-    // voice_rooms collection 規則（語音會議室）
-    match /voice_rooms/{roomId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
-      
-      // 信令子集合規則（WebRTC）
-      match /offers/{offerId} {
-        allow read, write: if request.auth != null;
-      }
-      
-      match /answers/{answerId} {
-        allow read, write: if request.auth != null;
-      }
-      
-      match /ice_candidates/{candidateId} {
-        allow read, write: if request.auth != null;
-      }
-    }
-    
-    // notifications collection 規則（通知）
+
     match /notifications/{notificationId} {
-      // 用戶只能讀取自己的通知
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      // 任何已登入用戶都可以創建通知（發送給其他人）
-      allow create: if request.auth != null;
-      // 用戶只能更新和刪除自己的通知
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read, update, delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
+      allow create: if signedIn();
     }
-    
-    // personal_events collection 規則（個人日曆事件）
+
     match /personal_events/{eventId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read, update, delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
+      allow create: if signedIn()
+        && (
+          request.resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /guide_topics/{topicId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /messages/{messageId} {
+      allow read, create, update, delete: if signedIn();
+    }
+
+    match /voice_rooms/{roomId} {
+      allow read, create, update, delete: if signedIn();
+
+      match /offers/{offerId} {
+        allow read, write: if signedIn();
+      }
+
+      match /answers/{answerId} {
+        allow read, write: if signedIn();
+      }
+
+      match /ice_candidates/{candidateId} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

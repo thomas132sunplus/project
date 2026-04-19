@@ -40,6 +40,9 @@ import { UserProfile } from "./components/UserProfile";
 import { ActivityList } from "./components/ActivityList";
 import { ActivityDetail } from "./components/ActivityDetail";
 import { ActivityForm } from "./components/ActivityForm";
+import { Announcements } from "./components/Announcements";
+import { PrivacyPolicy } from "./components/PrivacyPolicy";
+import { MaintenanceBanner } from "./components/MaintenanceBanner";
 // import Guide from "./components/Guide";
 
 function ProtectedRoute({ children }) {
@@ -92,49 +95,54 @@ export function AppRoutes() {
   };
 
   return (
-    <Routes>
-      <Route
-        path="/auth"
-        element={currentUser ? <Navigate to="/" replace /> : <Auth />}
-      />
-      {/* <Route path="/guide" element={<Guide />} /> */}
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <div className="min-h-screen bg-gray-50">
-              <Navbar />
-              {showSurvey && (
-                <MeetingRoomSurveyModal
-                  onClose={handleSurveyClose}
-                  onSubmit={handleSurveySubmit}
-                />
-              )}
-              <Outlet />
-            </div>
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/teams" replace />} />
-        <Route path="teams" element={<MyTeams />} />
-        <Route path="team/:id" element={<TeamDiscussion />} />
-        <Route path="practice-matching" element={<PracticeMatching />} />
-        <Route path="tournament/create" element={<TournamentForm />} />
-        <Route path="tournament/:id/edit" element={<TournamentForm />} />
-        <Route path="practice-matches" element={<PracticeMatchList />} />
+    <>
+      {/* <MaintenanceBanner /> */}
+      <Routes>
         <Route
-          path="practice-match-discussion/:id"
-          element={<PracticeMatchDiscussion />}
+          path="/auth"
+          element={currentUser ? <Navigate to="/" replace /> : <Auth />}
         />
-        <Route path="match-room/:id" element={<MatchRoom />} />
-        <Route path="feedback" element={<Feedback />} />
-        <Route path="feedback-list" element={<FeedbackList />} />
-        <Route path="profile" element={<UserProfile />} />
-        <Route path="activities" element={<ActivityList />} />
-        <Route path="activity/:id" element={<ActivityDetail />} />
-        <Route path="create" element={<ActivityForm />} />
-      </Route>
-    </Routes>
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        {/* <Route path="/guide" element={<Guide />} /> */}
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                {showSurvey && (
+                  <MeetingRoomSurveyModal
+                    onClose={handleSurveyClose}
+                    onSubmit={handleSurveySubmit}
+                  />
+                )}
+                <Outlet />
+              </div>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/teams" replace />} />
+          <Route path="announcements" element={<Announcements />} />
+          <Route path="teams" element={<MyTeams />} />
+          <Route path="team/:id" element={<TeamDiscussion />} />
+          <Route path="practice-matching" element={<PracticeMatching />} />
+          <Route path="tournament/create" element={<TournamentForm />} />
+          <Route path="tournament/:id/edit" element={<TournamentForm />} />
+          <Route path="practice-matches" element={<PracticeMatchList />} />
+          <Route
+            path="practice-match-discussion/:id"
+            element={<PracticeMatchDiscussion />}
+          />
+          <Route path="match-room/:id" element={<MatchRoom />} />
+          <Route path="feedback" element={<Feedback />} />
+          <Route path="feedback-list" element={<FeedbackList />} />
+          <Route path="profile" element={<UserProfile />} />
+          <Route path="activities" element={<ActivityList />} />
+          <Route path="activity/:id" element={<ActivityDetail />} />
+          <Route path="create" element={<ActivityForm />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 

@@ -32,6 +32,7 @@ export function Navbar() {
   };
 
   const navLinks = [
+    { to: "/announcements", label: "公告", active: isActive("/announcements") },
     {
       to: "/teams",
       label: "我的隊伍",

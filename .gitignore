@@ -27,3 +27,11 @@ dist-ssr
 .firebase/
 firebase-debug.log
 firestore-debug.log
+serviceAccountKey.json
+service-account*.json
+*-service-account.json
+
+# Local secrets
+.env
+.env.*
+!.env.example

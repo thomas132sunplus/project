@@ -12,7 +12,7 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 2000,
-    sourcemap: true,
+    sourcemap: false, // 關閉 source map
     rollupOptions: {
       output: {
         manualChunks(id) {

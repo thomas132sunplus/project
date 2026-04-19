@@ -8,6 +8,7 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   onAuthStateChanged,
+  deleteUser,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { createOrUpdateUser } from "./users";
@@ -118,6 +119,20 @@ export async function resetPassword(email) {
  */
 export function onAuthStateChange(callback) {
   return onAuthStateChanged(auth, callback);
+}
+
+/**
+ * 刪除帳號（Firebase Auth + Firestore 用戶資料）
+ */
+export async function deleteAccount(userId) {
+  try {
+    const { deleteDoc, doc } = await import("firebase/firestore");
+    await deleteDoc(doc(db, "users", userId));
+    await deleteUser(auth.currentUser);
+  } catch (error) {
+    console.error("刪除帳號失敗:", error);
+    throw error;
+  }
 }
 
 /**

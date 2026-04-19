@@ -117,6 +117,10 @@ export function MyTeams() {
     getUserTeams(currentUserId).then((data) => {
       setTeams(data);
       setLoading(false);
+    }).catch((err) => {
+      console.error("載入隊伍失敗:", err);
+      setError("載入隊伍失敗，請重新整理頁面");
+      setLoading(false);
     });
   }, [currentUserId]);
 

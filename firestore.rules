@@ -60,8 +60,16 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if signedIn();
-      allow create: if isSelf(userId);
-      allow update: if isSelf(userId) || isAdmin();
+      // create: 只能建立自己的文件，role 必須是 'debater'，不得含測試標記欄位
+      allow create: if isSelf(userId)
+                    && request.resource.data.role == 'debater'
+                    && !('_pentestMarker' in request.resource.data.keys());
+      // update: 只能改自己的文件，role 與 email 不得變動；admin 可改他人但同樣不能改 role
+      allow update: if (isSelf(userId)
+                        && request.resource.data.role == resource.data.role
+                        && request.resource.data.email == resource.data.email)
+                    || (isAdmin()
+                        && request.resource.data.role == resource.data.role);
       allow delete: if false;
     }
 

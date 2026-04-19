@@ -1,22 +1,39 @@
 // InviteCodeGate.jsx - 邀請碼驗證閘道
-// 只有輸入正確邀請碼才能進入系統
+// 透過 Firestore 後端驗證邀請碼，避免硬編碼在前端
 
 import { useState, useEffect } from "react";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+  increment,
+} from "firebase/firestore";
+import { db } from "../firebase/config";
 
-// 有效的邀請碼列表（可以在 Firebase Console 中管理）
-const VALID_INVITE_CODES = [
-  "DEBATE2026",
-  "EDGEWALKER",
-  "TAIWAN-DEBATE",
-  "TEST-ACCESS",
-  "ADMIN-2026",
-];
+// 從 Firestore invite_codes 集合驗證邀請碼
+async function verifyInviteCode(code) {
+  const q = query(
+    collection(db, "invite_codes"),
+    where("code", "==", code),
+    where("active", "==", true),
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return false;
+  // 更新使用次數
+  const docRef = snapshot.docs[0].ref;
+  await updateDoc(docRef, { usageCount: increment(1) });
+  return true;
+}
 
 export function InviteCodeGate({ children }) {
   const [isVerified, setIsVerified] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     // 檢查是否已經驗證過
@@ -27,7 +44,7 @@ export function InviteCodeGate({ children }) {
     setLoading(false);
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -38,23 +55,29 @@ export function InviteCodeGate({ children }) {
       return;
     }
 
-    if (VALID_INVITE_CODES.includes(trimmedCode)) {
-      // 驗證成功
-      localStorage.setItem("invite_verified", "true");
-      localStorage.setItem("invite_code_used", trimmedCode);
-      localStorage.setItem("verified_at", new Date().toISOString());
-      setIsVerified(true);
-      setError("");
-    } else {
-      setError("邀請碼無效，請聯繫管理員取得有效邀請碼");
-      setInviteCode("");
+    try {
+      setSubmitting(true);
+      const isValid = await verifyInviteCode(trimmedCode);
+      if (isValid) {
+        // 驗證成功
+        localStorage.setItem("invite_verified", "true");
+        localStorage.setItem("verified_at", new Date().toISOString());
+        setIsVerified(true);
+        setError("");
+      } else {
+        setError("邀請碼無效，請聯繫管理員取得有效邀請碼");
+        setInviteCode("");
+      }
+    } catch (err) {
+      setError("驗證時發生錯誤，請稍後再試");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleLogout = () => {
     if (window.confirm("確定要登出？下次需要重新輸入邀請碼。")) {
       localStorage.removeItem("invite_verified");
-      localStorage.removeItem("invite_code_used");
       localStorage.removeItem("verified_at");
       setIsVerified(false);
       setInviteCode("");
@@ -130,9 +153,10 @@ export function InviteCodeGate({ children }) {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold text-lg"
+              disabled={submitting}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold text-lg disabled:opacity-50"
             >
-              驗證並進入
+              {submitting ? "驗證中..." : "驗證並進入"}
             </button>
           </form>
 
@@ -142,25 +166,6 @@ export function InviteCodeGate({ children }) {
             <p className="text-sm text-gray-600 mt-1">
               請聯繫管理員取得測試資格
             </p>
-          </div>
-
-          {/* 測試用邀請碼提示（正式環境應該移除） */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-500 text-center mb-2">
-              測試用邀請碼（上線前請移除此提示）：
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {VALID_INVITE_CODES.map((code) => (
-                <code
-                  key={code}
-                  className="text-xs bg-gray-200 px-2 py-1 rounded cursor-pointer hover:bg-gray-300"
-                  onClick={() => setInviteCode(code)}
-                  title="點擊填入"
-                >
-                  {code}
-                </code>
-              ))}
-            </div>
           </div>
         </div>
       </div>

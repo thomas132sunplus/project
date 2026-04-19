@@ -1,3 +1,16 @@
+# Admin 腳本憑證
+
+需要執行 scripts 目錄中的 Firebase Admin 腳本時，請不要把 service account 私鑰放進版本庫。
+
+Windows PowerShell 範例：
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
+node scripts/fixMissingInviteCodes.admin.js
+```
+
+也可改用 `FIREBASE_SERVICE_ACCOUNT_PATH` 指向同一份 JSON 憑證檔。
+
 # 邊境之外0.0 - 辯論活動媒合平台
 
 一個專為台灣高中辯論社設計的完整辯論活動平台，整合盃賽資訊、隊伍協作、練習賽媒合與線上比賽工具。

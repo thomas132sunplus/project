@@ -23,7 +23,7 @@ export function NotificationPanel({ onClose }) {
       onClose();
       return;
     }
-    if (notification.linkTo) {
+    if (notification.linkTo && notification.linkTo.startsWith("/")) {
       navigate(notification.linkTo);
       onClose();
     }

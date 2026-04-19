@@ -411,24 +411,18 @@ function ChatSection({ teamId }) {
         userName: currentUser.displayName || currentUser.email,
         userEmail: currentUser.email,
       });
-      console.log("✓ 訊息發送成功");
       setNewMessage("");
     } catch (error) {
-      console.error("❌ 發送訊息失敗:", error);
-      console.error("錯誤類型:", error.name);
-      console.error("錯誤訊息:", error.message);
-      console.error("錯誤代碼:", error.code);
+      console.error("發送訊息失敗", error);
 
       let errorMsg = "發送失敗";
       if (error.code === "permission-denied") {
         errorMsg = "權限不足，無法發送訊息。請確認您是隊伍成員。";
       } else if (error.code === "unavailable") {
         errorMsg = "網絡連接失敗，請檢查網絡後重試。";
-      } else if (error.message) {
-        errorMsg = `發送失敗：${error.message}`;
       }
 
-      alert(errorMsg + "\n\n請按 F12 查看詳細錯誤日誌。");
+      alert(errorMsg);
     } finally {
       setSending(false);
     }

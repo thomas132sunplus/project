@@ -49,7 +49,10 @@ export const useNotifications = () => {
               latestNotification.message,
               null,
               () => {
-                if (latestNotification.linkTo) {
+                if (
+                  latestNotification.linkTo &&
+                  latestNotification.linkTo.startsWith("/")
+                ) {
                   window.location.href = latestNotification.linkTo;
                 }
               },

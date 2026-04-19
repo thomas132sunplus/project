@@ -291,6 +291,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // 邀請碼：任何人可讀取驗證，只有 admin 可管理
+    match /invite_codes/{codeId} {
+      allow read: if true;
+      allow update: if true;
+      allow create, delete: if isAdmin();
+    }
+
     match /messages/{messageId} {
       allow read: if signedIn();
       // create: 只能以自己的身份發送

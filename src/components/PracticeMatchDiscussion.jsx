@@ -883,9 +883,8 @@ function ChatSection({ matchId }) {
         unsubscribe();
       };
     } catch (error) {
-      console.error("訂閱失敗：", error);
-      console.error("錯誤詳情：", error.message, error.code);
-      alert("無法訂閱聊天訊息，請檢查網絡連接後重試。\n錯誤：" + error.message);
+      console.error("訂閱失敗", error);
+      alert("無法訂閱聊天訊息，請檢查網絡連接後重試。");
     }
   }, [matchId]);
 
@@ -914,14 +913,9 @@ function ChatSection({ matchId }) {
         userEmail: currentUser.email,
       });
 
-      console.log("成功發送訊息，ID:", messageId);
       setNewMessage("");
     } catch (error) {
-      console.error("發送訊息失敗：", error);
-      console.error("錯誤類型:", error.name);
-      console.error("錯誤訊息:", error.message);
-      console.error("錯誤代碼:", error.code);
-      console.error("錯誤堆疊:", error.stack);
+      console.error("發送訊息失敗", error);
 
       let errorMsg = "發送訊息失敗";
       if (error.code === "permission-denied") {
@@ -929,11 +923,9 @@ function ChatSection({ matchId }) {
           "權限不足，無法發送訊息。請確認您是隊伍成員，且具有發送訊息的權限。";
       } else if (error.code === "unavailable") {
         errorMsg = "網絡連接失敗，請檢查網絡連接後重試。";
-      } else if (error.message) {
-        errorMsg = `發送失敗：${error.message}`;
       }
 
-      alert(errorMsg + "\n\n請按 F12 打開瀏覽器控制台查看詳細錯誤資訊。");
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }

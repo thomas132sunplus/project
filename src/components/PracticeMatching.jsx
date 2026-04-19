@@ -734,11 +734,7 @@ export function PracticeMatching() {
                         // 重新載入盃賽隊伍
                         handleSelectTournament(updatedTournament);
                       } catch (err) {
-                        alert(
-                          "加入盃賽失敗，請稍後再試\n" +
-                            (err &&
-                              (err.message || err.code || JSON.stringify(err))),
-                        );
+                        alert("加入盃賽失敗，請稍後再試");
                       }
                     }}
                   >

@@ -1093,8 +1093,8 @@ export function VoiceCallWithTimer({
         console.error("❌ 發送會議通知失敗:", error);
       }
     } catch (error) {
-      console.error("創建會議室失敗:", error);
-      alert("創建會議室失敗: " + error.message);
+      console.error("創建會議室失敗", error);
+      alert("創建會議室失敗，請稍後再試");
     }
   };
 
@@ -1125,8 +1125,8 @@ export function VoiceCallWithTimer({
 
       setInRoom(true);
     } catch (error) {
-      console.error("加入會議室失敗:", error);
-      alert("加入會議室失敗: " + error.message);
+      console.error("加入會議室失敗", error);
+      alert("加入會議室失敗，請稍後再試");
     }
   };
 
@@ -1315,8 +1315,8 @@ export function VoiceCallWithTimer({
       setShowRecordingAlert(true);
       setTimeout(() => setShowRecordingAlert(false), 3000);
     } catch (error) {
-      console.error("開始錄音失敗:", error);
-      alert("開始錄音失敗: " + error.message);
+      console.error("開始錄音失敗", error);
+      alert("開始錄音失敗，請確認麥克風權限");
     }
   };
 
@@ -1441,9 +1441,8 @@ export function VoiceCallWithTimer({
       console.log("錄音保存成功！");
       alert("錄音已保存到錄音區");
     } catch (error) {
-      console.error("保存錄音失敗:", error);
-      console.error("錯誤詳情:", error.message, error.code);
-      alert("保存錄音失敗: " + error.message);
+      console.error("保存錄音失敗", error);
+      alert("保存錄音失敗，請稍後再試");
     }
   };
 

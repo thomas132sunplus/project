@@ -13,6 +13,13 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 2000,
     sourcemap: false, // 關閉 source map
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

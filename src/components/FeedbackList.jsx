@@ -6,16 +6,39 @@ import {
   deleteFeedback,
   updateFeedbackStatus,
 } from "../firebase/feedback";
+import { useAuth } from "../contexts/AuthContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase/config";
 
 export function FeedbackList() {
+  const { currentUser } = useAuth();
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all"); // all, suggestion, bug, other, meeting-room-survey
   const [statusFilter, setStatusFilter] = useState("pending"); // pending, in-progress, resolved, all
 
   useEffect(() => {
-    loadFeedbacks();
-  }, []);
+    async function checkAdmin() {
+      if (!currentUser) return;
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists() && userDoc.data().role === "admin") {
+        setIsAdmin(true);
+        loadFeedbacks();
+      } else {
+        setLoading(false);
+      }
+    }
+    checkAdmin();
+  }, [currentUser]);
+
+  if (!isAdmin && !loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <p className="text-red-600 text-lg">您沒有權限存取此頁面</p>
+      </div>
+    );
+  }
 
   const loadFeedbacks = async () => {
     try {

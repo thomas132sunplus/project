@@ -58,6 +58,12 @@ export function TournamentForm() {
     try {
       setInitialLoading(true);
       const data = await getTournament(id);
+      // 編輯模式下檢查是否為建立者
+      if (data.createdBy && data.createdBy !== currentUser?.uid) {
+        alert("您沒有權限編輯此盃賽");
+        navigate("/practice-matching");
+        return;
+      }
       setFormData({
         name: data.name || "",
         date: data.date || "",

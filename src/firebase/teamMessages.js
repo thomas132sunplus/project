@@ -24,8 +24,6 @@ const MESSAGES_COLLECTION = "team_messages";
  * @returns {Function} 取消訂閱函數
  */
 export function subscribeToTeamMessages(teamId, callback) {
-  console.log("訂閱隊伍訊息，teamId:", teamId);
-
   const q = query(
     collection(db, MESSAGES_COLLECTION),
     where("teamId", "==", teamId),
@@ -39,7 +37,6 @@ export function subscribeToTeamMessages(teamId, callback) {
         id: doc.id,
         ...doc.data(),
       }));
-      console.log("收到隊伍訊息更新:", messages.length, "條");
       callback(messages);
     },
     (error) => {
@@ -57,8 +54,6 @@ export function subscribeToTeamMessages(teamId, callback) {
  * @returns {Promise<string>} 訊息 ID
  */
 export async function sendTeamMessage(teamId, content, userInfo) {
-  console.log("發送隊伍訊息:", { teamId, content, userInfo });
-
   const messageData = {
     teamId,
     content: content.trim(),
@@ -70,17 +65,10 @@ export async function sendTeamMessage(teamId, content, userInfo) {
   };
 
   const docRef = await addDoc(collection(db, MESSAGES_COLLECTION), messageData);
-  console.log("訊息發送成功，ID:", docRef.id);
 
   // 發送通知給其他隊員
   try {
     const memberIds = await getTeamMemberIds(teamId);
-    console.log(
-      "[ChatNotify] 隊伍成員 IDs:",
-      memberIds,
-      "當前用戶:",
-      userInfo.userId,
-    );
     if (memberIds.length > 1) {
       await notifyChatMessage(
         teamId,
@@ -90,13 +78,9 @@ export async function sendTeamMessage(teamId, content, userInfo) {
         memberIds,
         "team",
       );
-      console.log("✅ 已發送聊天通知給隊員");
-    } else {
-      console.log("[ChatNotify] 隊伍成員不足 2 人，跳過通知");
     }
   } catch (error) {
-    console.error("❌ 發送聊天通知失敗:", error);
-    // 不影響主要流程，只記錄錯誤
+    // 不影響主要流程
   }
 
   return docRef.id;

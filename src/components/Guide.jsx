@@ -50,7 +50,6 @@ export default function Guide() {
 
   // 新增主題
   async function handleAddTopic() {
-    console.log("[Guide] handleAddTopic click");
     const id = await addGuideTopic({
       name: "新主題",
       cards: [{ img: "", desc: "" }],

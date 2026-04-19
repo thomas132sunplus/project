@@ -30,6 +30,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 
 const COLLECTION_NAME = "teams";
@@ -192,9 +194,8 @@ export async function updateTeam(teamId, updates) {
  */
 export async function addMemberToTeam(teamId, userId) {
   try {
-    const team = await getTeam(teamId);
-    const updatedMembers = [...team.members, userId];
-    await updateTeam(teamId, { members: updatedMembers });
+    const teamRef = doc(db, COLLECTION_NAME, teamId);
+    await updateDoc(teamRef, { members: arrayUnion(userId) });
   } catch (error) {
     console.error("新增隊員失敗:", error);
     throw error;
@@ -209,9 +210,8 @@ export async function addMemberToTeam(teamId, userId) {
  */
 export async function removeMemberFromTeam(teamId, userId) {
   try {
-    const team = await getTeam(teamId);
-    const updatedMembers = team.members.filter((id) => id !== userId);
-    await updateTeam(teamId, { members: updatedMembers });
+    const teamRef = doc(db, COLLECTION_NAME, teamId);
+    await updateDoc(teamRef, { members: arrayRemove(userId) });
   } catch (error) {
     console.error("移除隊員失敗:", error);
     throw error;

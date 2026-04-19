@@ -6,8 +6,6 @@ import { useAuth } from "../contexts/AuthContext";
 
 export function TournamentCard({ tournament }) {
   const { currentUser } = useAuth();
-  // Debug 輸出
-  console.log("[TournamentCard] currentUser?.uid:", currentUser?.uid, "tournament.createdBy:", tournament.createdBy);
   return (
     <Link
       to={`/tournament/${tournament.id}`}

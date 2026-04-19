@@ -135,7 +135,6 @@ export const createNotification = async (
       isRead: false,
       createdAt: serverTimestamp(),
     });
-    console.log("✅ 通知已創建:", { userId, type, title });
   } catch (error) {
     console.error("❌ 創建通知失敗:", error);
     throw error;
@@ -165,15 +164,6 @@ export const createBatchNotifications = async (
     const batch = writeBatch(db);
     const notificationsRef = collection(db, "notifications");
 
-    console.log(
-      "[createBatchNotifications] 正在創建通知, userIds:",
-      userIds,
-      "type:",
-      type,
-      "title:",
-      title,
-    );
-
     userIds.forEach((userId) => {
       const newNotificationRef = doc(notificationsRef);
       batch.set(newNotificationRef, {
@@ -190,7 +180,6 @@ export const createBatchNotifications = async (
     });
 
     await batch.commit();
-    console.log(`✅ 已批量創建 ${userIds.length} 個通知`);
   } catch (error) {
     console.error("❌ 批量創建通知失敗:", error);
     throw error;
@@ -204,7 +193,6 @@ export const createBatchNotifications = async (
  * @returns {Function} 取消監聽的函數
  */
 export const subscribeToNotifications = (userId, callback) => {
-  console.log("[subscribeToNotifications] 正在訂閱, userId:", userId);
   const notificationsRef = collection(db, "notifications");
   const q = query(
     notificationsRef,

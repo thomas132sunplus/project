@@ -400,9 +400,6 @@ function ChatSection({ teamId }) {
     if (!newMessage.trim()) return;
 
     console.log("=== 準備發送訊息 ===");
-    console.log("訊息內容:", newMessage);
-    console.log("teamId:", teamId);
-    console.log("currentUser:", currentUser.email);
 
     try {
       setSending(true);
@@ -920,28 +917,18 @@ function InvitationsSection({ teamId }) {
   };
 
   const handleAccept = async (invitationId) => {
-    console.log("=== 開始接受邀請流程 ===");
-    console.log("1. 當前用戶狀態:", currentUser);
-    console.log("2. currentUser 是否存在:", !!currentUser);
-    console.log("3. currentUser.uid:", currentUser?.uid);
-    console.log("4. currentUser.email:", currentUser?.email);
-    console.log("5. 邀請 ID:", invitationId);
-
     if (!window.confirm("確定接受此練習賽邀請嗎？")) {
-      console.log("用戶取消操作");
       return;
     }
 
     // 確保用戶已登入
     if (!currentUser) {
-      console.error("錯誤：用戶未登入");
       alert("請先登入後再接受邀請");
       return;
     }
 
     try {
       setProcessingId(invitationId);
-      console.log("6. 開始處理邀請，用戶:", currentUser.email);
 
       // 找到對應的邀請
       const invitation = receivedInvitations.find(
@@ -949,8 +936,6 @@ function InvitationsSection({ teamId }) {
       );
 
       if (!invitation) {
-        console.error("錯誤：找不到邀請，invitationId:", invitationId);
-        console.log("當前所有邀請:", receivedInvitations);
         throw new Error("找不到該邀請");
       }
 
@@ -982,14 +967,9 @@ function InvitationsSection({ teamId }) {
 
       // 自動創建練習賽記錄
       try {
-        console.log("10. 準備創建練習賽...");
         // 自動帶入邀約練習賽時間
         let matchDate = "";
         let matchTime = "";
-        alert(
-          "[DEBUG] invitation.practiceTime: " +
-            JSON.stringify(invitation.practiceTime),
-        );
         if (invitation.practiceTime) {
           if (
             typeof invitation.practiceTime === "object" &&
@@ -1030,38 +1010,19 @@ function InvitationsSection({ teamId }) {
             },
           },
         };
-        alert(
-          `[DEBUG] matchData.matchInfo.date: ${matchDate} / time: ${matchTime}`,
-        );
-        console.log("11. 練習賽資料:", matchData);
-        console.log("12. 使用用戶 ID:", currentUser.uid);
 
         const matchId = await createPracticeMatch(matchData, currentUser.uid);
-        console.log("13. ✓ 練習賽創建成功，ID:", matchId);
-        console.log("=== 接受邀請流程完成 ===");
 
         alert("已接受邀請！練習賽討論區已建立，請前往「練習賽」頁面查看。");
       } catch (matchErr) {
-        console.error("❌ 創建練習賽失敗:");
-        console.error("  - 錯誤對象:", matchErr);
-        console.error("  - 錯誤訊息:", matchErr.message);
-        console.error("  - 錯誤代碼:", matchErr.code);
-        console.error("  - 錯誤堆疊:", matchErr.stack);
-        alert(
-          `已接受邀請，但創建練習賽討論區時發生錯誤：\n${matchErr.message}\n\n請打開瀏覽器控制台查看詳細錯誤，或聯繫管理員。`,
-        );
+        console.error("創建練習賽失敗", matchErr);
+        alert("已接受邀請，但創建練習賽討論區時發生錯誤，請聯繫管理員。");
       }
 
       loadInvitations(); // 重新載入
     } catch (err) {
-      console.error("❌ 接受邀請失敗:");
-      console.error("  - 錯誤對象:", err);
-      console.error("  - 錯誤訊息:", err.message);
-      console.error("  - 錯誤代碼:", err.code);
-      console.error("  - 錯誤堆疊:", err.stack);
-      alert(
-        `接受邀請失敗：\n${err.message}\n\n請打開瀏覽器控制台（按F12）查看詳細錯誤。`,
-      );
+      console.error("接受邀請失敗", err);
+      alert("接受邀請失敗，請稍後重試。");
     } finally {
       setProcessingId(null);
     }

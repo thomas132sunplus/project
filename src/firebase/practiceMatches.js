@@ -259,15 +259,12 @@ export async function getUserPracticeMatches(teamIds) {
       return [];
     }
 
-    console.log("getUserPracticeMatches - 搜尋隊伍 IDs:", teamIds);
     const matchesRef = collection(db, COLLECTION_NAME);
     const snapshot = await getDocs(matchesRef);
-    console.log("getUserPracticeMatches - 總共文檔數:", snapshot.size);
 
     const matches = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      console.log("檢查文檔:", docSnap.id, data);
       // 檢查用戶的任何隊伍是否參與此練習賽
       if (
         teamIds.includes(data.fromTeam) ||
@@ -275,7 +272,6 @@ export async function getUserPracticeMatches(teamIds) {
         teamIds.includes(data.affirmativeTeam) ||
         teamIds.includes(data.negativeTeam)
       ) {
-        console.log("✓ 匹配到練習賽:", docSnap.id);
         matches.push({ id: docSnap.id, ...data });
       }
     });

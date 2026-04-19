@@ -262,10 +262,11 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid
           || isAdmin()
         );
-      // create: 任何登入用戶可建立通知（跨用戶通知為正常行為，如隊伍邀請、訊息通知等）
-      // 只限制必須有 userId 欄位
+      // create: 登入用戶可建立通知（跨用戶通知為正常行為，如隊伍邀請、訊息通知等）
+      // 限制 linkTo 只能是站內路徑或不存在
       allow create: if signedIn()
-        && request.resource.data.userId is string;
+        && request.resource.data.userId is string
+        && (!('linkTo' in request.resource.data) || request.resource.data.linkTo == null || request.resource.data.linkTo.matches('^/.*'));
     }
 
     match /personal_events/{eventId} {
@@ -291,10 +292,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // 邀請碼：任何人可讀取驗證，只有 admin 可管理
+    // 邀請碼：任何人可讀取驗證，匿名可遞增使用次數，只有 admin 可管理
     match /invite_codes/{codeId} {
       allow read: if true;
-      allow update: if true;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usageCount']);
       allow create, delete: if isAdmin();
     }
 

@@ -2,12 +2,26 @@
 // 設定收件人信箱
 $to = "thomas132sunplus@gmail.com"; // ← 請改成你自己的信箱
 
-// 收集表單資料
-$name = $_POST['name'];
-$phone = $_POST['phone'];
-$product = $_POST['product'];
-$quantity = $_POST['quantity'];
-$delivery = $_POST['delivery'];
+// 收集並清理表單資料（防止 header injection 與 XSS）
+function sanitizeInput($input) {
+    $input = trim($input);
+    // 移除可能的 SMTP header 注入字元
+    $input = str_replace(array("\r", "\n", "%0a", "%0d"), '', $input);
+    return htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
+}
+
+$name = isset($_POST['name']) ? sanitizeInput($_POST['name']) : '';
+$phone = isset($_POST['phone']) ? sanitizeInput($_POST['phone']) : '';
+$product = isset($_POST['product']) ? sanitizeInput($_POST['product']) : '';
+$quantity = isset($_POST['quantity']) ? sanitizeInput($_POST['quantity']) : '';
+$delivery = isset($_POST['delivery']) ? sanitizeInput($_POST['delivery']) : '';
+
+// 基本驗證
+if (empty($name) || empty($product) || empty($quantity)) {
+    http_response_code(400);
+    echo "<h2>請填寫必要欄位（姓名、商品、數量）。</h2>";
+    exit;
+}
 
 // 建立郵件內容
 $subject = "新訂單通知 - 妹妹烘培工坊";

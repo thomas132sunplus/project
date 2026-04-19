@@ -75,13 +75,18 @@ service cloud.firestore {
 
     match /teams/{teamId} {
       allow read: if (signedIn() && request.auth.uid in resource.data.members) || isAdmin();
-      allow create: if signedIn();
+      // create: 建立者必須在 members 裡面
+      allow create: if signedIn()
+        && request.auth.uid in request.resource.data.members;
+      // update: 只有現有成員或 admin 可更新；不得把自己以外的現有成員移除
       allow update, delete: if (signedIn() && request.auth.uid in resource.data.members) || isAdmin();
     }
 
     match /tournaments/{tournamentId} {
       allow read: if signedIn();
-      allow create: if signedIn();
+      // create: 必須設定 createdBy 為自己
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if signedIn()
         && (
           resource.data.createdBy == request.auth.uid
@@ -96,7 +101,9 @@ service cloud.firestore {
 
     match /activities/{activityId} {
       allow read: if signedIn();
-      allow create: if signedIn();
+      // create: 必須設定 createdBy 為自己
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if signedIn()
         && (
           !('createdBy' in resource.data)
@@ -123,7 +130,8 @@ service cloud.firestore {
 
     match /practiceMatches/{matchId} {
       allow read: if signedIn();
-      allow create: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if signedIn()
         && (
           resource.data.createdBy == request.auth.uid
@@ -254,7 +262,10 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid
           || isAdmin()
         );
-      allow create: if signedIn();
+      // create: 任何登入用戶可建立通知（跨用戶通知為正常行為，如隊伍邀請、訊息通知等）
+      // 只限制必須有 userId 欄位
+      allow create: if signedIn()
+        && request.resource.data.userId is string;
     }
 
     match /personal_events/{eventId} {
@@ -281,11 +292,30 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow read, create, update, delete: if signedIn();
+      allow read: if signedIn();
+      // create: 只能以自己的身份發送
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
+      // update/delete: 只能改自己的訊息或 admin
+      allow update, delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
     }
 
     match /voice_rooms/{roomId} {
-      allow read, create, update, delete: if signedIn();
+      allow read: if signedIn();
+      // create: 必須記錄建立者為自己
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid;
+      // update: 任何登入用戶可加入/離開房間；delete: 只有建立者或 admin
+      allow update: if signedIn();
+      allow delete: if signedIn()
+        && (
+          resource.data.createdBy == request.auth.uid
+          || isAdmin()
+        );
 
       match /offers/{offerId} {
         allow read, write: if signedIn();

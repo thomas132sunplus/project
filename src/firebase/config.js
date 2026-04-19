@@ -1,22 +1,20 @@
 // Firebase 配置檔案
-// 使用前請先到 Firebase Console 建立專案並取得配置資訊
-// https://console.firebase.google.com/
+// 從 .env 環境變數讀取，不要將敏感資訊寫死在程式碼中
+// 請參考 .env.example 建立 .env 檔案
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
-// 你的 Firebase 配置
-// 請到 Firebase Console > 專案設定 > 一般 > 你的應用程式 > SDK 設定和配置
-// 複製配置並替換以下內容
+// 從環境變數讀取 Firebase 配置
 const firebaseConfig = {
-  apiKey: "AIzaSyDOV34NoOB0CF30qMtsqrbKViW8hK8gk90",
-  authDomain: "edgewalker-6c6ac.firebaseapp.com",
-  projectId: "edgewalker-6c6ac",
-  storageBucket: "edgewalker-6c6ac.appspot.com",
-  messagingSenderId: "604632381184",
-  appId: "1:604632381184:web:2b48a559958cedf18565e5",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // 初始化 Firebase

@@ -3,19 +3,31 @@ rules_version = '2';
 // Firebase Storage 安全規則
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // 練習賽相關文件
+
+    // 練習賽相關文件 — 登入用戶可讀取，上傳限制檔案大小 10MB
     match /practice_matches/{matchId}/{allPaths=**} {
-      // 任何登入用戶都可以讀取
       allow read: if request.auth != null;
-      // 任何登入用戶都可以上傳
-      allow write: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.size < 10 * 1024 * 1024;
+      allow update: if request.auth != null
+                    && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if request.auth != null;
     }
-    
-    // 默認規則：需要認證
-    match /{allPaths=**} {
+
+    // 隊伍相關文件
+    match /teams/{teamId}/{allPaths=**} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.size < 10 * 1024 * 1024;
+      allow update: if request.auth != null
+                    && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if request.auth != null;
+    }
+
+    // 預設規則：拒絕所有未匹配的路徑
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
     }
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { getUser } from "../firebase/users";
 import {
   subscribeToGuideTopics,
   addGuideTopic,
@@ -13,12 +14,16 @@ import {
 // 新手導覽頁面：主題選擇 + 主題卡片翻頁
 export default function Guide() {
   const { currentUser } = useAuth();
-  const isEditor =
-    currentUser?.email?.toLowerCase() === "l515151527777@gmail.com";
+  const [isEditor, setIsEditor] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  // DEBUG: 顯示目前登入帳號
+
+  // 從 Firestore 取得用戶角色判斷編輯權限
   useEffect(() => {
-    console.log("[Guide] currentUser:", currentUser);
+    if (currentUser?.uid) {
+      getUser(currentUser.uid).then((userData) => {
+        setIsEditor(userData?.role === "admin");
+      });
+    }
   }, [currentUser]);
 
   // 主題列表
@@ -29,11 +34,9 @@ export default function Guide() {
   const topic = topics[selectedTopicIdx] || { cards: [] };
   const card = topic.cards?.[pageIdx] || {};
 
-  // Firestore 即時監聽
+  // Firestore 即時監聯
   useEffect(() => {
-    console.log("[Guide] useEffect mount");
     const unsub = subscribeToGuideTopics((data) => {
-      console.log("[Guide] subscribeToGuideTopics:", data);
       setTopics(data);
     });
     return () => unsub();

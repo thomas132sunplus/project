@@ -4,9 +4,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createActivity } from "../firebase/activities";
+import { useAuth } from "../contexts/AuthContext";
 
 export function ActivityForm() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
   // 表單狀態
   const [formData, setFormData] = useState({
@@ -63,8 +65,11 @@ export function ActivityForm() {
       setLoading(true);
       setError(null);
 
-      // 建立活動
-      const activityId = await createActivity(formData);
+      // 建立活動（帶入建立者 ID）
+      const activityId = await createActivity({
+        ...formData,
+        createdBy: currentUser.uid,
+      });
 
       // 成功後導向活動詳細頁
       navigate(`/activity/${activityId}`);

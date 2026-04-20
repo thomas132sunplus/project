@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   getDocs,
 } from "firebase/firestore";
-import { db } from "./config";
+import { db, auth } from "./config";
 
 // 通知類型常量
 export const NOTIFICATION_TYPES = {
@@ -130,6 +130,10 @@ export const createNotification = async (
 ) => {
   try {
     const notificationsRef = collection(db, "notifications");
+    const enrichedMetadata = {
+      ...metadata,
+      senderId: auth.currentUser?.uid || "",
+    };
     await addDoc(notificationsRef, {
       userId,
       type,
@@ -137,7 +141,7 @@ export const createNotification = async (
       message,
       relatedId,
       linkTo,
-      metadata,
+      metadata: enrichedMetadata,
       isRead: false,
       createdAt: serverTimestamp(),
     });
@@ -167,25 +171,32 @@ export const createBatchNotifications = async (
   metadata = {},
 ) => {
   try {
-    const batch = writeBatch(db);
     const notificationsRef = collection(db, "notifications");
+    const enrichedMetadata = {
+      ...metadata,
+      senderId: auth.currentUser?.uid || "",
+    };
+    const BATCH_LIMIT = 499;
 
-    userIds.forEach((userId) => {
-      const newNotificationRef = doc(notificationsRef);
-      batch.set(newNotificationRef, {
-        userId,
-        type,
-        title,
-        message,
-        relatedId,
-        linkTo,
-        metadata,
-        isRead: false,
-        createdAt: serverTimestamp(),
+    for (let i = 0; i < userIds.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db);
+      const chunk = userIds.slice(i, i + BATCH_LIMIT);
+      chunk.forEach((userId) => {
+        const newNotificationRef = doc(notificationsRef);
+        batch.set(newNotificationRef, {
+          userId,
+          type,
+          title,
+          message,
+          relatedId,
+          linkTo,
+          metadata: enrichedMetadata,
+          isRead: false,
+          createdAt: serverTimestamp(),
+        });
       });
-    });
-
-    await batch.commit();
+      await batch.commit();
+    }
   } catch (error) {
     console.error("❌ 批量創建通知失敗:", error);
     throw error;

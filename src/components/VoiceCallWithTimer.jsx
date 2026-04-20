@@ -1378,6 +1378,11 @@ export function VoiceCallWithTimer({
       const blob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
       console.log("創建錄音 Blob，大小:", blob.size, "bytes");
 
+      if (blob.size > 10 * 1024 * 1024) {
+        alert("錄音檔案超過 10MB 限制，請縮短錄音時間");
+        return;
+      }
+
       const timestamp = Date.now();
       const fileName = `recording_${currentUser.uid}_${timestamp}.webm`;
 

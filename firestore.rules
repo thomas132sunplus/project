@@ -120,7 +120,11 @@ service cloud.firestore {
     match /invitations/{invitationId} {
       allow read: if invitationParticipant(resource.data) || isAdmin();
       allow create: if invitationParticipant(request.resource.data) || isAdmin();
-      allow update, delete: if invitationParticipant(resource.data) || isAdmin();
+      // update: 只允許修改 status, respondedAt, chatRoomId, matchId, endTime
+      allow update: if (invitationParticipant(resource.data) || isAdmin())
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'respondedAt', 'chatRoomId', 'matchId', 'endTime']);
+      allow delete: if invitationParticipant(resource.data) || isAdmin();
     }
 
     match /practice_matches/{matchId} {
@@ -279,7 +283,7 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid
           || isAdmin()
         );
-      // create: 限制欄位白名單、合法通知類型、isRead 必須 false、createdAt 必須 server timestamp
+      // create: 限制欄位白名單、合法通知類型、isRead 必須 false、createdAt 必須 server timestamp、metadata.senderId 必須是自己
       allow create: if signedIn()
         && request.resource.data.userId is string
         && request.resource.data.keys().hasOnly(
@@ -291,6 +295,8 @@ service cloud.firestore {
              'match_cancel_request', 'match_cancelled', 'team_member_added', 'announcement']
         && request.resource.data.isRead == false
         && request.resource.data.createdAt == request.time
+        && request.resource.data.metadata is map
+        && request.resource.data.metadata.senderId == request.auth.uid
         && (!('linkTo' in request.resource.data) || request.resource.data.linkTo == null || request.resource.data.linkTo.matches('^/.*'));
     }
 

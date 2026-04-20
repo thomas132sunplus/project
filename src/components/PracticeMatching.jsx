@@ -1080,6 +1080,11 @@ export function PracticeMatching() {
                     <p className="text-sm text-white text-opacity-95 mb-3">
                       👥 {team.members?.length || 0} 位隊員
                     </p>
+                    {team.description && (
+                      <p className="text-sm text-white text-opacity-90">
+                        📝 {team.description}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

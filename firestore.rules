@@ -279,10 +279,18 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid
           || isAdmin()
         );
-      // create: 登入用戶可建立通知（跨用戶通知為正常行為，如隊伍邀請、訊息通知等）
-      // 限制 linkTo 只能是站內路徑或不存在
+      // create: 限制欄位白名單、合法通知類型、isRead 必須 false、createdAt 必須 server timestamp
       allow create: if signedIn()
         && request.resource.data.userId is string
+        && request.resource.data.keys().hasOnly(
+             ['userId', 'type', 'title', 'message', 'relatedId', 'linkTo', 'metadata', 'isRead', 'createdAt'])
+        && request.resource.data.type in [
+             'chat_message', 'tournament_update', 'meeting_start', 'meeting_reminder',
+             'practice_invitation', 'invitation_response', 'calendar_event',
+             'file_upload', 'recording_upload', 'feedback',
+             'match_cancel_request', 'match_cancelled', 'team_member_added', 'announcement']
+        && request.resource.data.isRead == false
+        && request.resource.data.createdAt == request.time
         && (!('linkTo' in request.resource.data) || request.resource.data.linkTo == null || request.resource.data.linkTo.matches('^/.*'));
     }
 

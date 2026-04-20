@@ -551,6 +551,11 @@ export function PracticeMatching() {
                     <p className="text-gray-600 text-sm">
                       👥 {tournament.participatingTeams?.length || 0} 隊參賽
                     </p>
+                    {tournament.topics && tournament.topics.length > 0 && (
+                      <p className="text-gray-600 text-sm mt-2">
+                        📋 辯題：{tournament.topics.join("、")}
+                      </p>
+                    )}
                     <div className="mt-4 text-blue-600 font-medium text-sm">
                       點擊查看參賽隊伍 →
                     </div>

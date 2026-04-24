@@ -296,6 +296,30 @@ export const deleteNotification = async (notificationId) => {
 };
 
 /**
+ * 刪除與特定資源 ID 相關的所有通知（如刪除事件時清除提醒）
+ * @param {string} relatedId - 相關資源 ID（如事件 ID）
+ */
+export const deleteNotificationsByRelatedId = async (relatedId) => {
+  try {
+    const notificationsRef = collection(db, "notifications");
+    const q = query(notificationsRef, where("relatedId", "==", relatedId));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return;
+
+    const BATCH_LIMIT = 499;
+    const docs = snapshot.docs;
+    for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db);
+      docs.slice(i, i + BATCH_LIMIT).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    console.log(`✅ 已刪除 ${docs.length} 筆與事件 ${relatedId} 相關的通知`);
+  } catch (error) {
+    console.error("❌ 刪除相關通知失敗:", error);
+  }
+};
+
+/**
  * 清除所有已讀通知
  * @param {string} userId - 用戶 ID
  */

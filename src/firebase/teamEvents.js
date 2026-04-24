@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./config";
 import { notifyCalendarEvent, getTeamMemberIds } from "./notificationHelpers";
+import { deleteNotificationsByRelatedId } from "./notifications";
 
 const EVENTS_COLLECTION = "team_events";
 
@@ -172,6 +173,8 @@ export async function updateTeamEvent(eventId, updates) {
  */
 export async function deleteTeamEvent(eventId) {
   await deleteDoc(doc(db, EVENTS_COLLECTION, eventId));
+  // 同步清除所有與此事件相關的通知（日曆事件通知、會議提醒）
+  await deleteNotificationsByRelatedId(eventId);
   console.log("事件已刪除");
 }
 

@@ -7,6 +7,7 @@ import {
   markUserAvailability,
   subscribeToTeamAvailability,
   createTeamEvent,
+  getTeamEvents,
   subscribeToTeamEvents,
   deleteTeamEvent,
 } from "../firebase/teamEvents";
@@ -504,6 +505,8 @@ export function TeamCalendar({ teamId }) {
       setShowEventForm(false);
       setSelectedResult(null);
       setCustomEventName("");
+      // 手動重新查詢，防止訂閱失效時暫不更新
+      getTeamEvents(teamId).then(setEvents).catch(console.error);
     } catch (err) {
       console.error("建立事件失敗:", err);
       alert("建立失敗，請稍後再試");
@@ -552,9 +555,11 @@ export function TeamCalendar({ teamId }) {
       alert("事件已建立！");
       setShowDirectEventForm(false);
       setDirectEventName("");
+      // 手動重新查詢，防止訂閱失效時暫不更新
+      getTeamEvents(teamId).then(setEvents).catch(console.error);
     } catch (err) {
       console.error("建立事件失敗:", err);
-      alert("建立失敗，請稍後再試");
+      alert("建立失敗，請稍稍後再試");
     }
   };
 
@@ -1305,14 +1310,13 @@ export function TeamCalendar({ teamId }) {
       )}
 
       {/* 事件列表 */}
-      {visibleEvents.length > 0 && (
+      {events.length > 0 && (
         <div className="mt-4">
           <h3 className="font-bold text-gray-800 mb-3">
-            📅 {viewMode === "week" ? "本週" : "本月"}事件（
-            {visibleEvents.length}）
+            📅 所有隊伍事件（{events.length}）
           </h3>
           <div className="space-y-2">
-            {visibleEvents.map((event) => {
+            {events.map((event) => {
               const start =
                 event.startTime?.toDate?.() || new Date(event.startTime);
               const typeColors = {

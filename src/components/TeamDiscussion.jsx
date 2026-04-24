@@ -225,7 +225,7 @@ export function TeamDiscussion() {
               </button>
             )}
             {/* 僅創辦者可見刪除按鈕 */}
-            {team.captain === currentUser?.uid && (
+            {team.members?.includes(currentUser?.uid) && (
               <button
                 className="px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 transition"
                 onClick={async () => {

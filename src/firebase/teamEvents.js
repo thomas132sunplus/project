@@ -87,30 +87,33 @@ export async function createTeamEvent(teamId, eventData) {
  * @returns {Promise<Array>} 事件陣列
  */
 export async function getTeamEvents(teamId, startDate = null, endDate = null) {
-  let q = query(
+  const q = query(
     collection(db, EVENTS_COLLECTION),
     where("teamId", "==", teamId),
   );
 
-  if (startDate) {
-    q = query(q, where("startTime", ">=", startDate));
-  }
-  if (endDate) {
-    q = query(q, where("startTime", "<=", endDate));
-  }
-
-  q = query(q, orderBy("startTime", "asc"));
-
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => {
+  let results = snapshot.docs.map((doc) => {
     const data = doc.data();
-    // 強制補上 teamId 欄位
-    return {
-      id: doc.id,
-      ...data,
-      teamId: data.teamId || teamId,
-    };
+    return { id: doc.id, ...data, teamId: data.teamId || teamId };
   });
+
+  if (startDate)
+    results = results.filter(
+      (e) => (e.startTime?.toDate?.() || new Date(e.startTime)) >= startDate,
+    );
+  if (endDate)
+    results = results.filter(
+      (e) => (e.startTime?.toDate?.() || new Date(e.startTime)) <= endDate,
+    );
+
+  results.sort((a, b) => {
+    const ta = (a.startTime?.toDate?.() || new Date(a.startTime)).getTime();
+    const tb = (b.startTime?.toDate?.() || new Date(b.startTime)).getTime();
+    return ta - tb;
+  });
+
+  return results;
 }
 
 /**
@@ -123,16 +126,29 @@ export function subscribeToTeamEvents(teamId, callback) {
   const q = query(
     collection(db, EVENTS_COLLECTION),
     where("teamId", "==", teamId),
-    orderBy("startTime", "asc"),
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const events = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+  const sortAndCallback = (docs) => {
+    const events = docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => {
+        const ta = (a.startTime?.toDate?.() || new Date(a.startTime)).getTime();
+        const tb = (b.startTime?.toDate?.() || new Date(b.startTime)).getTime();
+        return ta - tb;
+      });
     callback(events);
-  });
+  };
+
+  return onSnapshot(
+    q,
+    (snapshot) => sortAndCallback(snapshot.docs),
+    (err) => {
+      console.error("subscribeToTeamEvents 失敗:", err);
+      getDocs(q)
+        .then((snapshot) => sortAndCallback(snapshot.docs))
+        .catch(console.error);
+    },
+  );
 }
 
 /**

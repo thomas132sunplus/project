@@ -11,6 +11,7 @@ export default defineConfig({
     exclude: ["@huggingface/transformers"],
   },
   build: {
+    modulePreload: { polyfill: false }, // 停用 inline modulepreload polyfill，避免 CSP hash 問題
     chunkSizeWarningLimit: 2000,
     sourcemap: false, // 關閉 source map
     minify: "terser",

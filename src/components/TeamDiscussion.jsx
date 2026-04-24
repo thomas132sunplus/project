@@ -93,6 +93,7 @@ export function TeamDiscussion() {
   const [editForm, setEditForm] = useState({
     name: "",
     school: "",
+    description: "",
     teamColor: "#3B82F6",
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -103,6 +104,7 @@ export function TeamDiscussion() {
       setEditForm({
         name: team.name || "",
         school: team.school || "",
+        description: team.description || "",
         teamColor: team.teamColor || "#3B82F6",
       });
     }
@@ -130,6 +132,7 @@ export function TeamDiscussion() {
         mod.updateTeam(team.id, {
           name: editForm.name.trim(),
           school: editForm.school.trim(),
+          description: editForm.description.trim(),
           teamColor: safeColor,
         }),
       );
@@ -281,6 +284,21 @@ export function TeamDiscussion() {
                     onChange={(e) =>
                       setEditForm((f) => ({ ...f, school: e.target.value }))
                     }
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 mb-1">隊伍簡介</label>
+                  <textarea
+                    className="w-full border rounded px-3 py-2"
+                    rows={3}
+                    value={editForm.description}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="簡單介紹一下你的隊伍..."
                   />
                 </div>
                 <div>

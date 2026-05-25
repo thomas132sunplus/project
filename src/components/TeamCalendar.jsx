@@ -35,6 +35,7 @@ const COLOR_OPTIONS = [
 const EVENT_TYPES = [
   { value: "discussion", label: "討論" },
   { value: "practice", label: "練習賽" },
+  { value: "competition", label: "比賽" },
   { value: "submission", label: "一辯稿繳交" },
   { value: "custom", label: "自訂" },
 ];
@@ -630,6 +631,7 @@ export function TeamCalendar({ teamId }) {
     let title = "";
     if (eventType === "discussion") title = "討論";
     else if (eventType === "practice") title = "練習賽";
+    else if (eventType === "competition") title = "比賽";
     else if (eventType === "submission") title = "一辯稿繳交";
     else if (eventType === "custom") title = customEventName.trim();
     if (!title) {
@@ -642,6 +644,7 @@ export function TeamCalendar({ teamId }) {
       const typeMap = {
         discussion: "meeting",
         practice: "practice",
+        competition: "competition",
         submission: "deadline",
         custom: "other",
       };
@@ -699,6 +702,7 @@ export function TeamCalendar({ teamId }) {
     let title = "";
     if (directEventType === "discussion") title = "討論";
     else if (directEventType === "practice") title = "練習賽";
+    else if (directEventType === "competition") title = "比賽";
     else if (directEventType === "submission") title = "一辯稿繳交";
     else if (directEventType === "custom") title = directEventName.trim();
     if (!title) {
@@ -710,6 +714,7 @@ export function TeamCalendar({ teamId }) {
       const typeMap = {
         discussion: "meeting",
         practice: "practice",
+        competition: "competition",
         submission: "deadline",
         custom: "other",
       };
@@ -1683,6 +1688,7 @@ export function TeamCalendar({ teamId }) {
               const typeColors = {
                 meeting: "border-l-blue-500",
                 practice: "border-l-green-500",
+                competition: "border-l-orange-500",
                 deadline: "border-l-red-500",
                 other: "border-l-gray-500",
               };

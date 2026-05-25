@@ -17,6 +17,7 @@ const EVENT_TYPES = [
   { value: "personal", label: "個人事項", color: "#3B82F6" },
   { value: "deadline", label: "截止日期", color: "#EF4444" },
   { value: "reminder", label: "提醒", color: "#F59E0B" },
+  { value: "competition", label: "比賽", color: "#F97316" },
 ];
 
 const TEAM_EVENT_COLORS = {

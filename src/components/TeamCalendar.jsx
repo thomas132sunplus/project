@@ -587,7 +587,37 @@ export function TeamCalendar({ teamId }) {
       }
       finalResults = merged;
     } else {
-      finalResults = results.map((r) => ({ ...r, endDate: r.date }));
+      // 不合併：將每個重疊區塊依各成員「原始時段邊界」拆成多段獨立列出
+      const splitResults = [];
+      for (const r of results) {
+        const rStart = timeToMin(r.start);
+        const rEnd = timeToMin(r.end);
+        // 收集區塊內所有成員 range 的邊界點
+        const boundaries = new Set([rStart, rEnd]);
+        for (const m of r.members) {
+          const av = allAvailability.find((a) => a.userId === m.userId);
+          if (!av) continue;
+          parseSlots(av.availableSlots)
+            .filter((x) => x.date === r.date)
+            .forEach((x) => {
+              const s = timeToMin(x.start);
+              const e = timeToMin(x.end);
+              if (s > rStart && s < rEnd) boundaries.add(s);
+              if (e > rStart && e < rEnd) boundaries.add(e);
+            });
+        }
+        const sortedBoundaries = [...boundaries].sort((a, b) => a - b);
+        for (let i = 0; i < sortedBoundaries.length - 1; i++) {
+          splitResults.push({
+            date: r.date,
+            endDate: r.date,
+            start: minToTime(sortedBoundaries[i]),
+            end: minToTime(sortedBoundaries[i + 1]),
+            members: r.members,
+          });
+        }
+      }
+      finalResults = splitResults;
     }
 
     setFilteredResults(finalResults);

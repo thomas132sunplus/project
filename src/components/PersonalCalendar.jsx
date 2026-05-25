@@ -415,19 +415,7 @@ export function PersonalCalendar() {
                   {dayEvents.length > 0 && (
                     <div className="mt-1 space-y-0.5">
                       {dayEvents.slice(0, 2).map((evt, i) => {
-                        const toTime = (ts) => {
-                          const d = ts?.toDate ? ts.toDate() : new Date(ts);
-                          return d.toLocaleTimeString("zh-TW", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          });
-                        };
-                        const start = evt.startTime
-                          ? toTime(evt.startTime)
-                          : "";
-                        const end = evt.endTime ? toTime(evt.endTime) : "";
-                        let label = start;
-                        if (end) label += ` ~ ${end}`;
+                        const label = getEventLabelForDate(evt, key);
                         return (
                           <div
                             key={i}
@@ -484,19 +472,7 @@ export function PersonalCalendar() {
                   {dayEvents.length > 0 && (
                     <div className="mt-1 space-y-0.5">
                       {dayEvents.slice(0, 2).map((evt, i) => {
-                        const toTime = (ts) => {
-                          const d = ts?.toDate ? ts.toDate() : new Date(ts);
-                          return d.toLocaleTimeString("zh-TW", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          });
-                        };
-                        const start = evt.startTime
-                          ? toTime(evt.startTime)
-                          : "";
-                        const end = evt.endTime ? toTime(evt.endTime) : "";
-                        let label = start;
-                        if (end) label += ` ~ ${end}`;
+                        const label = getEventLabelForDate(evt, key);
                         return (
                           <div
                             key={i}
@@ -732,6 +708,24 @@ export function PersonalCalendar() {
 
 function toDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// 取得事件於指定日期(dsKey: YYYY-MM-DD)的「當日片段」時間 label
+// 跨日：開頭日 = startTime ~ 24:00，中間日 = 00:00 ~ 24:00，結束日 = 00:00 ~ endTime
+function getEventLabelForDate(evt, dsKey) {
+  if (evt.allDay) return "全天";
+  if (!evt.startTime) return "";
+  const toDt = (ts) => (ts?.toDate ? ts.toDate() : new Date(ts));
+  const pad = (n) => String(n).padStart(2, "0");
+  const fmt = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const start = toDt(evt.startTime);
+  const end = evt.endTime ? toDt(evt.endTime) : null;
+  const startKey = toDateKey(start);
+  const endKey = end ? toDateKey(end) : startKey;
+  const s = dsKey === startKey ? fmt(start) : "00:00";
+  if (!end) return s;
+  const e = dsKey === endKey ? fmt(end) : "24:00";
+  return `${s} ~ ${e}`;
 }
 
 function getEventColor(ev) {

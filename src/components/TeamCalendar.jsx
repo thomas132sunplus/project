@@ -112,6 +112,29 @@ function formatResultLabel(r) {
   return `${d.getMonth() + 1}/${d.getDate()}（${dn[d.getDay()]}）${r.start} - ${r.end}`;
 }
 
+// 取得事件於指定日期(ds: YYYY-MM-DD)的「當日片段」時間 label
+// 例：跨日事件 5/24 06:00 → 5/26 21:00
+//   5/24 顯示 06:00 ~ 24:00（開頭日）
+//   5/25 顯示 00:00 ~ 24:00（中間日）
+//   5/26 顯示 00:00 ~ 21:00（結束日）
+function getEventLabelForDate(evt, ds) {
+  const start = evt.startTime?.toDate
+    ? evt.startTime.toDate()
+    : new Date(evt.startTime);
+  const end = evt.endTime?.toDate
+    ? evt.endTime.toDate()
+    : evt.endTime
+      ? new Date(evt.endTime)
+      : null;
+  const fmt = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const startDs = toDateStr(start);
+  const endDs = end ? toDateStr(end) : startDs;
+  const s = ds === startDs ? fmt(start) : "00:00";
+  if (!end) return s;
+  const e = ds === endDs ? fmt(end) : "24:00";
+  return `${s} ~ ${e}`;
+}
+
 // 解析舊格式 slot key → range
 function oldSlotToRange(key) {
   const d = new Date(key);
@@ -951,39 +974,13 @@ export function TeamCalendar({ teamId }) {
                               deadline: "bg-red-400",
                               other: "bg-gray-400",
                             };
+                            const evt = slotEvts[0];
+                            const label = getEventLabelForDate(evt, ds);
                             return (
                               <div
                                 className={`absolute bottom-0 left-0 right-0 ${evtBgMap[evtType] || evtBgMap.other} text-white text-[7px] leading-tight text-center truncate px-0.5 font-medium`}
                               >
-                                {(() => {
-                                  const evt = slotEvts[0];
-                                  let start = evt.startTime?.toDate
-                                    ? evt.startTime.toDate()
-                                    : new Date(evt.startTime);
-                                  let end = evt.endTime?.toDate
-                                    ? evt.endTime.toDate()
-                                    : evt.endTime
-                                      ? new Date(evt.endTime)
-                                      : null;
-                                  let label =
-                                    start && !isNaN(start)
-                                      ? start.toLocaleTimeString("zh-TW", {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })
-                                      : "";
-                                  if (end && !isNaN(end)) {
-                                    label +=
-                                      " ~ " +
-                                      end.toLocaleTimeString("zh-TW", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      });
-                                  }
-                                  return (
-                                    label + (evt.title ? " " + evt.title : "")
-                                  );
-                                })()}
+                                {label + (evt.title ? " " + evt.title : "")}
                               </div>
                             );
                           })()}
@@ -1051,37 +1048,13 @@ export function TeamCalendar({ teamId }) {
                       deadline: "bg-red-100 text-red-800",
                       other: "bg-gray-100 text-gray-800",
                     };
+                    const label = getEventLabelForDate(evt, ds);
                     return (
                       <div
                         key={idx}
                         className={`text-[9px] leading-tight ${evtStyleMap[evtType] || evtStyleMap.other} rounded px-1 mb-0.5 truncate`}
                       >
-                        {(() => {
-                          let start = evt.startTime?.toDate
-                            ? evt.startTime.toDate()
-                            : new Date(evt.startTime);
-                          let end = evt.endTime?.toDate
-                            ? evt.endTime.toDate()
-                            : evt.endTime
-                              ? new Date(evt.endTime)
-                              : null;
-                          let label =
-                            start && !isNaN(start)
-                              ? start.toLocaleTimeString("zh-TW", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "";
-                          if (end && !isNaN(end)) {
-                            label +=
-                              " ~ " +
-                              end.toLocaleTimeString("zh-TW", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              });
-                          }
-                          return label + (evt.title ? " " + evt.title : "");
-                        })()}
+                        {label + (evt.title ? " " + evt.title : "")}
                       </div>
                     );
                   })}

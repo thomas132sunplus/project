@@ -76,22 +76,20 @@ export function PersonalCalendar() {
     return () => unsub();
   }, [currentUser]);
 
-  // 載入所有隊伍事件
+  // 載入所有隊伍事件（不限範圍，由前端 overlap 處理跨日/跨月顯示）
   useEffect(() => {
     if (!currentUser) return;
     loadTeamEvents();
-  }, [currentUser, year, month]);
+  }, [currentUser]);
 
   const loadTeamEvents = async () => {
     try {
       setLoading(true);
       const teams = await getUserTeams(currentUser.uid);
-      const startOfMonth = new Date(year, month, 1);
-      const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
 
       const allEvents = [];
       for (const team of teams) {
-        const events = await getTeamEvents(team.id, startOfMonth, endOfMonth);
+        const events = await getTeamEvents(team.id);
         events.forEach((ev) => {
           allEvents.push({ ...ev, teamName: team.name, teamId: team.id });
         });

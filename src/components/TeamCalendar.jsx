@@ -107,9 +107,16 @@ function getMonthCalendarDates(year, month) {
 }
 
 function formatResultLabel(r) {
-  const d = new Date(r.date);
   const dn = ["日", "一", "二", "三", "四", "五", "六"];
-  return `${d.getMonth() + 1}/${d.getDate()}（${dn[d.getDay()]}）${r.start} - ${r.end}`;
+  const fmt = (ds) => {
+    const d = new Date(`${ds}T00:00:00`);
+    return `${d.getMonth() + 1}/${d.getDate()}（${dn[d.getDay()]}）`;
+  };
+  const endDate = r.endDate || r.date;
+  if (endDate === r.date) {
+    return `${fmt(r.date)}${r.start} - ${r.end}`;
+  }
+  return `${fmt(r.date)}${r.start} ~ ${fmt(endDate)}${r.end}`;
 }
 
 // 取得事件於指定日期(ds: YYYY-MM-DD)的「當日片段」時間 label
@@ -187,6 +194,7 @@ export function TeamCalendar({ teamId }) {
   const [minOverlap, setMinOverlap] = useState(2);
   const [isFiltered, setIsFiltered] = useState(false);
   const [filteredResults, setFilteredResults] = useState([]);
+  const [mergeConsecutive, setMergeConsecutive] = useState(true);
 
   // 建立事件
   const [showEventForm, setShowEventForm] = useState(false);
@@ -202,6 +210,9 @@ export function TeamCalendar({ teamId }) {
   const [directEventEnd, setDirectEventEnd] = useState("10:00");
   const [directEventType, setDirectEventType] = useState("discussion");
   const [directEventName, setDirectEventName] = useState("");
+  // 事件標籤（可從現有隊伍事件選取或自訂新增）
+  const [directEventTags, setDirectEventTags] = useState([]);
+  const [customTagInput, setCustomTagInput] = useState("");
 
   // ─── 載入隊伍成員 ───
   useEffect(() => {
@@ -530,7 +541,56 @@ export function TeamCalendar({ teamId }) {
       }
     }
 
-    setFilteredResults(results);
+    // 合併連續時段（含跨日）：同一組成員、前一段 end=24:00 且下一日第一段 start=00:00
+    let finalResults = results;
+    if (mergeConsecutive && results.length > 1) {
+      const sorted = [...results].sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) || a.start.localeCompare(b.start),
+      );
+      const memKey = (r) =>
+        r.members
+          .map((m) => m.userId)
+          .sort()
+          .join(",");
+      const nextDateStr = (ds) => {
+        const d = new Date(`${ds}T00:00:00`);
+        d.setDate(d.getDate() + 1);
+        return toDateStr(d);
+      };
+      const merged = [];
+      for (const r of sorted) {
+        const last = merged[merged.length - 1];
+        // 同一天連續：last.end === r.start
+        if (
+          last &&
+          last.endDate === r.date &&
+          last.end === r.start &&
+          memKey(last) === memKey(r)
+        ) {
+          last.end = r.end;
+          continue;
+        }
+        // 跨日連續：last.end === "24:00" 且 r.date 為 last.endDate 隔天、r.start === "00:00"
+        if (
+          last &&
+          last.end === "24:00" &&
+          r.start === "00:00" &&
+          nextDateStr(last.endDate) === r.date &&
+          memKey(last) === memKey(r)
+        ) {
+          last.endDate = r.date;
+          last.end = r.end;
+          continue;
+        }
+        merged.push({ ...r, endDate: r.date });
+      }
+      finalResults = merged;
+    } else {
+      finalResults = results.map((r) => ({ ...r, endDate: r.date }));
+    }
+
+    setFilteredResults(finalResults);
     setIsFiltered(true);
   };
 
@@ -555,12 +615,22 @@ export function TeamCalendar({ teamId }) {
         submission: "deadline",
         custom: "other",
       };
+      // 將 r.end="24:00" 轉成隔天的 00:00
+      let realEndDate = r.endDate || r.date;
+      let realEndTime = r.end;
+      if (realEndTime === "24:00") {
+        const d = new Date(`${realEndDate}T00:00:00`);
+        d.setDate(d.getDate() + 1);
+        realEndDate = toDateStr(d);
+        realEndTime = "00:00";
+      }
       await createTeamEvent(teamId, {
         title,
         type: typeMap[eventType] || "other",
         startTime: new Date(`${r.date}T${r.start}:00`),
-        endTime: new Date(`${r.date}T${r.end}:00`),
+        endTime: new Date(`${realEndDate}T${realEndTime}:00`),
         description: `參與成員：${r.members.map((m) => m.name).join("、")}`,
+        tags: directEventTags,
         creatorInfo: {
           userId: currentUser.uid,
           userName: currentUser.displayName || currentUser.email,
@@ -571,6 +641,8 @@ export function TeamCalendar({ teamId }) {
       setShowEventForm(false);
       setSelectedResult(null);
       setCustomEventName("");
+      setDirectEventTags([]);
+      setCustomTagInput("");
       // 手動重新查詢，防止訂閱失效時暫不更新
       getTeamEvents(teamId).then(setEvents).catch(console.error);
     } catch (err) {
@@ -617,6 +689,7 @@ export function TeamCalendar({ teamId }) {
         startTime: new Date(`${directEventDate}T${directEventStart}:00`),
         endTime: new Date(`${endDate}T${directEventEnd}:00`),
         description: "",
+        tags: directEventTags,
         creatorInfo: {
           userId: currentUser.uid,
           userName: currentUser.displayName || currentUser.email,
@@ -627,12 +700,41 @@ export function TeamCalendar({ teamId }) {
       setShowDirectEventForm(false);
       setDirectEventName("");
       setDirectEventEndDate("");
+      setDirectEventTags([]);
+      setCustomTagInput("");
       // 手動重新查詢，防止訂閱失效時暫不更新
       getTeamEvents(teamId).then(setEvents).catch(console.error);
     } catch (err) {
       console.error("建立事件失敗:", err);
       alert("建立失敗，請稍後再試");
     }
+  };
+
+  // 取得目前隊伍日曆中已使用過的標籤（去重排序）
+  const availableTeamTags = useMemo(() => {
+    const set = new Set();
+    events.forEach((e) =>
+      (e.tags || []).forEach((t) => {
+        const v = (t || "").toString().trim();
+        if (v) set.add(v);
+      }),
+    );
+    return Array.from(set).sort();
+  }, [events]);
+
+  // 切換標籤勾選
+  const toggleEventTag = (tag) => {
+    setDirectEventTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  };
+
+  // 新增自訂標籤
+  const handleAddCustomTag = () => {
+    const v = customTagInput.trim();
+    if (!v) return;
+    setDirectEventTags((prev) => (prev.includes(v) ? prev : [...prev, v]));
+    setCustomTagInput("");
   };
 
   // 當前視圖事件（含跨日 overlap）
@@ -1088,6 +1190,8 @@ export function TeamCalendar({ teamId }) {
             setDirectEventEnd("10:00");
             setDirectEventType("discussion");
             setDirectEventName("");
+            setDirectEventTags([]);
+            setCustomTagInput("");
           }}
           className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
         >
@@ -1118,6 +1222,19 @@ export function TeamCalendar({ teamId }) {
           >
             篩選
           </button>
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={mergeConsecutive}
+              onChange={(e) => setMergeConsecutive(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span>
+              連續時段合併為同一事件（含跨日，例如 5/24 22:00 ~ 5/25 02:00）
+            </span>
+          </label>
         </div>
       </div>
 
@@ -1160,6 +1277,8 @@ export function TeamCalendar({ teamId }) {
                       setShowEventForm(true);
                       setEventType("discussion");
                       setCustomEventName("");
+                      setDirectEventTags([]);
+                      setCustomTagInput("");
                     }}
                     className="ml-3 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition flex-shrink-0"
                   >
@@ -1181,27 +1300,102 @@ export function TeamCalendar({ teamId }) {
               📅 {formatResultLabel(selectedResult)}
             </p>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                事件類型
-              </label>
-              <div className="space-y-2">
-                {EVENT_TYPES.map((t) => (
-                  <label
-                    key={t.value}
-                    className="flex items-center gap-2 cursor-pointer"
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              {/* 左側：事件標籤 */}
+              <div className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col h-full">
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  🏷️ 事件標籤
+                </label>
+                <div className="flex-1 min-h-[60px] max-h-40 overflow-y-auto pr-1">
+                  {availableTeamTags.length === 0 &&
+                  directEventTags.filter((t) => !availableTeamTags.includes(t))
+                    .length === 0 ? (
+                    <p className="text-xs text-gray-400">
+                      尚無標籤，可於下方新增自訂標籤
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from(
+                        new Set([...availableTeamTags, ...directEventTags]),
+                      ).map((tag) => {
+                        const active = directEventTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleEventTag(tag)}
+                            className={`px-2.5 py-1 rounded-full text-xs border transition whitespace-nowrap ${
+                              active
+                                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                                : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-300"
+                            }`}
+                          >
+                            {active ? "✓ " : "#"}
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <input
+                    type="text"
+                    value={customTagInput}
+                    onChange={(e) => setCustomTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCustomTag();
+                      }
+                    }}
+                    placeholder="新增自訂標籤..."
+                    className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomTag}
+                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 whitespace-nowrap"
                   >
-                    <input
-                      type="radio"
-                      name="eventType"
-                      value={t.value}
-                      checked={eventType === t.value}
-                      onChange={(e) => setEventType(e.target.value)}
-                      className="text-blue-600"
-                    />
-                    <span className="text-gray-700">{t.label}</span>
-                  </label>
-                ))}
+                    + 新增
+                  </button>
+                </div>
+              </div>
+
+              {/* 右側：事件類型 */}
+              <div className="bg-white border border-gray-200 rounded-lg p-3 h-full">
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  📋 事件類型
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {EVENT_TYPES.map((t) => {
+                    const active = eventType === t.value;
+                    return (
+                      <label
+                        key={t.value}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${
+                          active
+                            ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
+                            : "bg-white border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="eventType"
+                          value={t.value}
+                          checked={active}
+                          onChange={(e) => setEventType(e.target.value)}
+                          className="text-blue-600"
+                        />
+                        <span
+                          className={`text-sm ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                        >
+                          {t.label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -1239,6 +1433,8 @@ export function TeamCalendar({ teamId }) {
                   setShowEventForm(false);
                   setSelectedResult(null);
                   setCustomEventName("");
+                  setDirectEventTags([]);
+                  setCustomTagInput("");
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
               >
@@ -1306,27 +1502,102 @@ export function TeamCalendar({ teamId }) {
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                事件類型
-              </label>
-              <div className="space-y-2">
-                {EVENT_TYPES.map((t) => (
-                  <label
-                    key={t.value}
-                    className="flex items-center gap-2 cursor-pointer"
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              {/* 左側：事件標籤 */}
+              <div className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col h-full">
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  🏷️ 事件標籤
+                </label>
+                <div className="flex-1 min-h-[60px] max-h-40 overflow-y-auto pr-1">
+                  {availableTeamTags.length === 0 &&
+                  directEventTags.filter((t) => !availableTeamTags.includes(t))
+                    .length === 0 ? (
+                    <p className="text-xs text-gray-400">
+                      尚無標籤，可於下方新增自訂標籤
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from(
+                        new Set([...availableTeamTags, ...directEventTags]),
+                      ).map((tag) => {
+                        const active = directEventTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleEventTag(tag)}
+                            className={`px-2.5 py-1 rounded-full text-xs border transition whitespace-nowrap ${
+                              active
+                                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                                : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-300"
+                            }`}
+                          >
+                            {active ? "✓ " : "#"}
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <input
+                    type="text"
+                    value={customTagInput}
+                    onChange={(e) => setCustomTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCustomTag();
+                      }
+                    }}
+                    placeholder="新增自訂標籤..."
+                    className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomTag}
+                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 whitespace-nowrap"
                   >
-                    <input
-                      type="radio"
-                      name="directEventType"
-                      value={t.value}
-                      checked={directEventType === t.value}
-                      onChange={(e) => setDirectEventType(e.target.value)}
-                      className="text-blue-600"
-                    />
-                    <span className="text-gray-700">{t.label}</span>
-                  </label>
-                ))}
+                    + 新增
+                  </button>
+                </div>
+              </div>
+
+              {/* 右側：事件類型 */}
+              <div className="bg-white border border-gray-200 rounded-lg p-3 h-full">
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  📋 事件類型
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {EVENT_TYPES.map((t) => {
+                    const active = directEventType === t.value;
+                    return (
+                      <label
+                        key={t.value}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${
+                          active
+                            ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
+                            : "bg-white border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="directEventType"
+                          value={t.value}
+                          checked={active}
+                          onChange={(e) => setDirectEventType(e.target.value)}
+                          className="text-blue-600"
+                        />
+                        <span
+                          className={`text-sm ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                        >
+                          {t.label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -1357,6 +1628,8 @@ export function TeamCalendar({ teamId }) {
                   setShowDirectEventForm(false);
                   setDirectEventName("");
                   setDirectEventEndDate("");
+                  setDirectEventTags([]);
+                  setCustomTagInput("");
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
               >
@@ -1435,6 +1708,18 @@ export function TeamCalendar({ teamId }) {
                     <p className="text-sm text-gray-600 mt-1">
                       {event.description}
                     </p>
+                  )}
+                  {Array.isArray(event.tags) && event.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {event.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
               );

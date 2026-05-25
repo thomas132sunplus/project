@@ -53,6 +53,7 @@ export async function createTeamEvent(teamId, eventData) {
     ],
     reminder: eventData.reminder || null, // {type: 'email'|'notification', minutesBefore: 15}
     notes: eventData.notes || "",
+    tags: Array.isArray(eventData.tags) ? eventData.tags : [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };

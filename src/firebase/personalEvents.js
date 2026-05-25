@@ -30,6 +30,7 @@ export async function createPersonalEvent(userId, eventData) {
     endTime: eventData.endTime || null,
     allDay: eventData.allDay || false,
     color: eventData.color || "#3B82F6",
+    tags: Array.isArray(eventData.tags) ? eventData.tags : [],
     createdAt: serverTimestamp(),
   });
   return { id: docRef.id };

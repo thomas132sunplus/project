@@ -61,11 +61,47 @@ export function PersonalCalendar() {
     startTime: "",
     endTime: "",
     allDay: false,
+    tags: [],
   });
+  const [customTagInput, setCustomTagInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  // 可選擇的標籤：個人事件 + 所有隊伍事件中曾使用過的標籤（去重排序）
+  const availableTags = useMemo(() => {
+    const set = new Set();
+    [...personalEvents, ...teamEvents].forEach((e) =>
+      (e.tags || []).forEach((t) => {
+        const v = (t || "").toString().trim();
+        if (v) set.add(v);
+      }),
+    );
+    return Array.from(set).sort();
+  }, [personalEvents, teamEvents]);
+
+  const toggleEventTag = (tag) => {
+    setEventForm((prev) => {
+      const tags = prev.tags || [];
+      return {
+        ...prev,
+        tags: tags.includes(tag)
+          ? tags.filter((t) => t !== tag)
+          : [...tags, tag],
+      };
+    });
+  };
+
+  const handleAddCustomTag = () => {
+    const v = customTagInput.trim();
+    if (!v) return;
+    setEventForm((prev) => {
+      const tags = prev.tags || [];
+      return tags.includes(v) ? prev : { ...prev, tags: [...tags, v] };
+    });
+    setCustomTagInput("");
+  };
 
   // 訂閱個人事件
   useEffect(() => {
@@ -216,7 +252,9 @@ export function PersonalCalendar() {
       startTime: `${dateStr}T09:00`,
       endTime: `${dateStr}T10:00`,
       allDay: false,
+      tags: [],
     });
+    setCustomTagInput("");
     setShowEventForm(true);
   };
 
@@ -235,6 +273,7 @@ export function PersonalCalendar() {
         endTime: eventForm.endTime ? new Date(eventForm.endTime) : null,
         allDay: eventForm.allDay,
         color: typeInfo?.color || "#3B82F6",
+        tags: eventForm.tags || [],
       });
       setShowEventForm(false);
       setEventForm({
@@ -244,7 +283,9 @@ export function PersonalCalendar() {
         startTime: "",
         endTime: "",
         allDay: false,
+        tags: [],
       });
+      setCustomTagInput("");
     } catch (error) {
       console.error("建立事件失敗:", error);
       alert("建立事件失敗，請稍後再試");
@@ -414,12 +455,20 @@ export function PersonalCalendar() {
                     <div className="mt-1 space-y-0.5">
                       {dayEvents.slice(0, 2).map((evt, i) => {
                         const label = getEventLabelForDate(evt, key);
+                        const tagSuffix =
+                          Array.isArray(evt.tags) && evt.tags.length > 0
+                            ? ` #${evt.tags[0]}${evt.tags.length > 1 ? `+${evt.tags.length - 1}` : ""}`
+                            : "";
                         return (
                           <div
                             key={i}
                             className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                            title={`${evt.title}${tagSuffix ? ` (${evt.tags.map((t) => "#" + t).join(" ")})` : ""}`}
                           >
                             {label} {evt.title}
+                            {tagSuffix && (
+                              <span className="text-blue-600">{tagSuffix}</span>
+                            )}
                           </div>
                         );
                       })}
@@ -471,12 +520,20 @@ export function PersonalCalendar() {
                     <div className="mt-1 space-y-0.5">
                       {dayEvents.slice(0, 2).map((evt, i) => {
                         const label = getEventLabelForDate(evt, key);
+                        const tagSuffix =
+                          Array.isArray(evt.tags) && evt.tags.length > 0
+                            ? ` #${evt.tags[0]}${evt.tags.length > 1 ? `+${evt.tags.length - 1}` : ""}`
+                            : "";
                         return (
                           <div
                             key={i}
                             className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                            title={`${evt.title}${tagSuffix ? ` (${evt.tags.map((t) => "#" + t).join(" ")})` : ""}`}
                           >
                             {label} {evt.title}
+                            {tagSuffix && (
+                              <span className="text-blue-600">{tagSuffix}</span>
+                            )}
                           </div>
                         );
                       })}
@@ -537,27 +594,112 @@ export function PersonalCalendar() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    類型
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                {/* 左側：事件標籤 */}
+                <div className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col h-full">
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    🏷️ 事件標籤
                   </label>
-                  <select
-                    value={eventForm.type}
-                    onChange={(e) =>
-                      setEventForm({ ...eventForm, type: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    {EVENT_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex-1 min-h-[60px] max-h-40 overflow-y-auto pr-1">
+                    {availableTags.length === 0 &&
+                    (eventForm.tags || []).filter(
+                      (t) => !availableTags.includes(t),
+                    ).length === 0 ? (
+                      <p className="text-xs text-gray-400">
+                        尚無標籤，可於下方新增自訂標籤
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.from(
+                          new Set([
+                            ...availableTags,
+                            ...(eventForm.tags || []),
+                          ]),
+                        ).map((tag) => {
+                          const active = (eventForm.tags || []).includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => toggleEventTag(tag)}
+                              className={`px-2.5 py-1 rounded-full text-xs border transition whitespace-nowrap ${
+                                active
+                                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                                  : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-300"
+                              }`}
+                            >
+                              {active ? "✓ " : "#"}
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                    <input
+                      type="text"
+                      value={customTagInput}
+                      onChange={(e) => setCustomTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCustomTag();
+                        }
+                      }}
+                      placeholder="新增自訂標籤..."
+                      className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomTag}
+                      className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 whitespace-nowrap"
+                    >
+                      + 新增
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-end">
-                  <label className="flex items-center gap-2 py-2">
+
+                {/* 右側：事件類型 */}
+                <div className="bg-white border border-gray-200 rounded-lg p-3 h-full flex flex-col">
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    📋 事件類型
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {EVENT_TYPES.map((t) => {
+                      const active = eventForm.type === t.value;
+                      return (
+                        <label
+                          key={t.value}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${
+                            active
+                              ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
+                              : "bg-white border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="personalEventType"
+                            value={t.value}
+                            checked={active}
+                            onChange={(e) =>
+                              setEventForm({
+                                ...eventForm,
+                                type: e.target.value,
+                              })
+                            }
+                            className="text-blue-600"
+                          />
+                          <span
+                            className={`text-sm ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                          >
+                            {t.label}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <label className="flex items-center gap-2 px-3 py-2 mt-3 border-t border-gray-100 pt-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={eventForm.allDay}
@@ -673,6 +815,18 @@ export function PersonalCalendar() {
                     {ev.location && (
                       <div className="text-sm text-gray-500 mt-0.5">
                         📍 {ev.location}
+                      </div>
+                    )}
+                    {Array.isArray(ev.tags) && ev.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {ev.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

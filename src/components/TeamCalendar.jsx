@@ -14,8 +14,8 @@ import {
 import { getTeam } from "../firebase/teams";
 import { getUser } from "../firebase/users";
 
-const START_HOUR = 8;
-const END_HOUR = 22;
+const START_HOUR = 0;
+const END_HOUR = 24;
 const GRID_INTERVAL = 60; // 格子間隔（分鐘）
 const DAY_NAMES = ["一", "二", "三", "四", "五", "六", "日"];
 
@@ -157,6 +157,7 @@ export function TeamCalendar({ teamId }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addDate, setAddDate] = useState("");
   const [addStart, setAddStart] = useState("09:00");
+  const [addEndDate, setAddEndDate] = useState("");
   const [addEnd, setAddEnd] = useState("10:00");
 
   // 篩選
@@ -174,6 +175,7 @@ export function TeamCalendar({ teamId }) {
   const [showDirectEventForm, setShowDirectEventForm] = useState(false);
   const [directEventDate, setDirectEventDate] = useState("");
   const [directEventStart, setDirectEventStart] = useState("09:00");
+  const [directEventEndDate, setDirectEventEndDate] = useState("");
   const [directEventEnd, setDirectEventEnd] = useState("10:00");
   const [directEventType, setDirectEventType] = useState("discussion");
   const [directEventName, setDirectEventName] = useState("");
@@ -294,21 +296,46 @@ export function TeamCalendar({ teamId }) {
     }
   };
 
-  // ─── 精確新增 ───
+  // ─── 精確新增（支援跨日，自動切分為每日 range）───
   const handleAddRange = () => {
     if (!addDate || !addStart || !addEnd) {
       alert("請填寫完整的日期和時間");
       return;
     }
-    if (timeToMin(addStart) >= timeToMin(addEnd)) {
+    const endDate = addEndDate || addDate;
+    if (endDate < addDate) {
+      alert("結束日期必須晚於或等於開始日期");
+      return;
+    }
+    if (endDate === addDate && timeToMin(addStart) >= timeToMin(addEnd)) {
       alert("結束時間必須晚於開始時間");
       return;
     }
-    setMyRanges((prev) => [
-      ...prev,
-      { date: addDate, start: addStart, end: addEnd },
-    ]);
+
+    // 將跨日時間切分成每日的 range
+    const newRanges = [];
+    const startDt = new Date(`${addDate}T${addStart}:00`);
+    const endDt = new Date(`${endDate}T${addEnd}:00`);
+    const cursor = new Date(startDt);
+    cursor.setHours(0, 0, 0, 0);
+    const lastDay = new Date(endDt);
+    lastDay.setHours(0, 0, 0, 0);
+    while (cursor.getTime() <= lastDay.getTime()) {
+      const ds = toDateStr(cursor);
+      const isFirst = ds === addDate;
+      const isLast = ds === endDate;
+      const s = isFirst ? addStart : "00:00";
+      const e = isLast ? addEnd : "24:00";
+      // 24:00 在 timeToMin 為 1440，若 START_HOUR>0 仍可運作
+      if (timeToMin(s) < timeToMin(e)) {
+        newRanges.push({ date: ds, start: s, end: e });
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    setMyRanges((prev) => [...prev, ...newRanges]);
     setShowAddForm(false);
+    setAddEndDate("");
   };
 
   const removeRange = (r) => {
@@ -347,18 +374,34 @@ export function TeamCalendar({ teamId }) {
   const getSlotEvents = (ds, slot) => {
     const sStart = timeToMin(slot);
     const sEnd = sStart + GRID_INTERVAL;
+    // 該格子的絕對時間範圍
+    const dayStart = new Date(`${ds}T00:00:00`).getTime();
+    const slotStartTs = dayStart + sStart * 60_000;
+    const slotEndTs = dayStart + sEnd * 60_000;
     return events.filter((e) => {
       const start = e.startTime?.toDate?.() || new Date(e.startTime);
-      if (toDateStr(start) !== ds) return false;
-      const eMin = start.getHours() * 60 + start.getMinutes();
-      return eMin >= sStart && eMin < sEnd;
+      const end =
+        e.endTime?.toDate?.() ||
+        (e.endTime
+          ? new Date(e.endTime)
+          : new Date(start.getTime() + 60 * 60_000));
+      return start.getTime() < slotEndTs && end.getTime() > slotStartTs;
     });
   };
 
-  const getDateEvents = (ds) =>
-    events.filter(
-      (e) => toDateStr(e.startTime?.toDate?.() || new Date(e.startTime)) === ds,
-    );
+  const getDateEvents = (ds) => {
+    const dayStart = new Date(`${ds}T00:00:00`).getTime();
+    const dayEnd = dayStart + 24 * 60 * 60_000;
+    return events.filter((e) => {
+      const start = e.startTime?.toDate?.() || new Date(e.startTime);
+      const end =
+        e.endTime?.toDate?.() ||
+        (e.endTime
+          ? new Date(e.endTime)
+          : new Date(start.getTime() + 60 * 60_000));
+      return start.getTime() < dayEnd && end.getTime() > dayStart;
+    });
+  };
 
   const getDateMembers = (ds) =>
     allAvailability
@@ -513,13 +556,18 @@ export function TeamCalendar({ teamId }) {
     }
   };
 
-  // ─── 直接建立事件 ───
+  // ─── 直接建立事件（支援跨日）───
   const handleDirectCreateEvent = async () => {
     if (!directEventDate) {
       alert("請選擇日期");
       return;
     }
-    if (directEventStart >= directEventEnd) {
+    const endDate = directEventEndDate || directEventDate;
+    if (endDate < directEventDate) {
+      alert("結束日期必須晚於或等於開始日期");
+      return;
+    }
+    if (endDate === directEventDate && directEventStart >= directEventEnd) {
       alert("結束時間必須晚於開始時間");
       return;
     }
@@ -544,7 +592,7 @@ export function TeamCalendar({ teamId }) {
         title,
         type: typeMap[directEventType] || "other",
         startTime: new Date(`${directEventDate}T${directEventStart}:00`),
-        endTime: new Date(`${directEventDate}T${directEventEnd}:00`),
+        endTime: new Date(`${endDate}T${directEventEnd}:00`),
         description: "",
         creatorInfo: {
           userId: currentUser.uid,
@@ -555,29 +603,39 @@ export function TeamCalendar({ teamId }) {
       alert("事件已建立！");
       setShowDirectEventForm(false);
       setDirectEventName("");
+      setDirectEventEndDate("");
       // 手動重新查詢，防止訂閱失效時暫不更新
       getTeamEvents(teamId).then(setEvents).catch(console.error);
     } catch (err) {
       console.error("建立事件失敗:", err);
-      alert("建立失敗，請稍稍後再試");
+      alert("建立失敗，請稍後再試");
     }
   };
 
-  // 當前視圖事件
+  // 當前視圖事件（含跨日 overlap）
   const visibleEvents = useMemo(() => {
+    const getRange = (e) => {
+      const s = e.startTime?.toDate?.() || new Date(e.startTime);
+      const en =
+        e.endTime?.toDate?.() ||
+        (e.endTime ? new Date(e.endTime) : new Date(s.getTime() + 60 * 60_000));
+      return [s.getTime(), en.getTime()];
+    };
     if (viewMode === "week") {
-      const end = new Date(weekDates[6]);
-      end.setHours(23, 59, 59, 999);
+      const ws = new Date(weekDates[0]);
+      ws.setHours(0, 0, 0, 0);
+      const we = new Date(weekDates[6]);
+      we.setHours(23, 59, 59, 999);
       return events.filter((e) => {
-        const start = e.startTime?.toDate?.() || new Date(e.startTime);
-        return start >= weekDates[0] && start <= end;
+        const [s, en] = getRange(e);
+        return s <= we.getTime() && en >= ws.getTime();
       });
     }
-    const ms = new Date(mYear, mMonth, 1);
-    const me = new Date(mYear, mMonth + 1, 0, 23, 59, 59, 999);
+    const ms = new Date(mYear, mMonth, 1).getTime();
+    const me = new Date(mYear, mMonth + 1, 0, 23, 59, 59, 999).getTime();
     return events.filter((e) => {
-      const start = e.startTime?.toDate?.() || new Date(e.startTime);
-      return start >= ms && start <= me;
+      const [s, en] = getRange(e);
+      return s <= me && en >= ms;
     });
   }, [events, viewMode, weekDates, mYear, mMonth]);
 
@@ -740,11 +798,13 @@ export function TeamCalendar({ teamId }) {
       {showAddForm && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
           <h4 className="font-medium text-gray-700 mb-3">
-            新增可用時間（分鐘精度）
+            新增可用時間（支援跨日，分鐘精度）
           </h4>
           <div className="flex gap-3 items-end flex-wrap">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">日期</label>
+              <label className="block text-xs text-gray-600 mb-1">
+                開始日期
+              </label>
               <input
                 type="date"
                 value={addDate}
@@ -760,6 +820,17 @@ export function TeamCalendar({ teamId }) {
                 type="time"
                 value={addStart}
                 onChange={(e) => setAddStart(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">
+                結束日期（可跨日，留空＝同一天）
+              </label>
+              <input
+                type="date"
+                value={addEndDate}
+                onChange={(e) => setAddEndDate(e.target.value)}
                 className="px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
               />
             </div>
@@ -1039,6 +1110,7 @@ export function TeamCalendar({ teamId }) {
           onClick={() => {
             setShowDirectEventForm(true);
             setDirectEventDate(toDateStr(new Date()));
+            setDirectEventEndDate("");
             setDirectEventStart("09:00");
             setDirectEventEnd("10:00");
             setDirectEventType("discussion");
@@ -1214,12 +1286,24 @@ export function TeamCalendar({ teamId }) {
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                日期
+                開始日期
               </label>
               <input
                 type="date"
                 value={directEventDate}
                 onChange={(e) => setDirectEventDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                結束日期（可跨日，留空＝同一天）
+              </label>
+              <input
+                type="date"
+                value={directEventEndDate}
+                onChange={(e) => setDirectEventEndDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1299,6 +1383,7 @@ export function TeamCalendar({ teamId }) {
                 onClick={() => {
                   setShowDirectEventForm(false);
                   setDirectEventName("");
+                  setDirectEventEndDate("");
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
               >

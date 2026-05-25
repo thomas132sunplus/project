@@ -8,10 +8,14 @@ import {
   getPracticeMatch,
   updatePracticeMatchInfo,
   requestCancelPracticeMatch,
-  deletePracticeMatch,
+  deletePracticeMatchCascade,
 } from "../firebase/practiceMatches";
 import { getTeam } from "../firebase/teams";
 import { getTournament } from "../firebase/tournaments";
+import {
+  hideInvitation,
+  hideAcceptedInvitationsByTeams,
+} from "../firebase/invitations";
 import {
   sendMessage,
   subscribeToMessages,
@@ -76,7 +80,27 @@ export function PracticeMatchDiscussion() {
 
       // 若盃賽已被刪除，則自動刪除此練習賽並導回列表
       if (!tournamentData) {
-        await deletePracticeMatch(matchData.id);
+        if (matchData.invitationId) {
+          try {
+            await hideInvitation(matchData.invitationId);
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+        try {
+          const tA = matchData.fromTeam || matchData.affirmativeTeam;
+          const tB = matchData.toTeam || matchData.negativeTeam;
+          if (tA && tB && matchData.tournamentId) {
+            await hideAcceptedInvitationsByTeams(
+              tA,
+              tB,
+              matchData.tournamentId,
+            );
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+        await deletePracticeMatchCascade(matchData.id);
         alert("此盃賽已被刪除，相關練習賽房間也已自動移除。");
         navigate("/practice-matches");
         return;
@@ -189,7 +213,26 @@ export function PracticeMatchDiscussion() {
       const allMemberIds = [...new Set([...fromIds, ...toIds])];
 
       await notifyMatchCancelled(id, fromTeam.name, toTeam.name, allMemberIds);
-      await deletePracticeMatch(id);
+      // 先標記邀請為 deleted，避免列表頁自動補建
+      if (match?.invitationId) {
+        try {
+          await hideInvitation(match.invitationId);
+        } catch (e) {
+          console.warn("標記邀請刪除失敗：", e);
+        }
+      }
+      // 後備：依 team 配對 + tournamentId 查找任何仍為 accepted 的邀請並標記 deleted（防止舊 match 沒有 invitationId 或多筆邀請導致重建）
+      try {
+        const tA = match?.fromTeam || match?.affirmativeTeam || fromTeam?.id;
+        const tB = match?.toTeam || match?.negativeTeam || toTeam?.id;
+        const tid = match?.tournamentId || tournament?.id;
+        if (tA && tB && tid) {
+          await hideAcceptedInvitationsByTeams(tA, tB, tid);
+        }
+      } catch (e) {
+        console.warn("後備標記邀請失敗：", e);
+      }
+      await deletePracticeMatchCascade(id);
 
       alert("練習賽已取消");
       navigate("/practice-matches");

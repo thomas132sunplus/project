@@ -8,16 +8,10 @@ import { getUserTeams } from "../firebase/teams";
 import {
   getUserPracticeMatches,
   createPracticeMatch,
-  getExpiredMatches,
-  deletePracticeMatch,
 } from "../firebase/practiceMatches";
 import { getTeam } from "../firebase/teams";
 import { getTournament } from "../firebase/tournaments";
 import { getAcceptedInvitations } from "../firebase/invitations";
-import {
-  getTeamMemberIds,
-  notifyMatchExpired,
-} from "../firebase/notificationHelpers";
 
 export function PracticeMatchList() {
   const { currentUser } = useAuth();
@@ -99,32 +93,6 @@ export function PracticeMatchList() {
           }
         }
         matches = await getUserPracticeMatches(teamIds);
-      }
-      const expiredMatches = getExpiredMatches(matches);
-      if (expiredMatches.length > 0) {
-        for (const expired of expiredMatches) {
-          try {
-            const [ft, tt] = await Promise.all([
-              getTeam(expired.fromTeam || expired.affirmativeTeam),
-              getTeam(expired.toTeam || expired.negativeTeam),
-            ]);
-            const [fromIds, toIds] = await Promise.all([
-              getTeamMemberIds(ft?.id),
-              getTeamMemberIds(tt?.id),
-            ]);
-            const allIds = [...new Set([...fromIds, ...toIds])];
-            await notifyMatchExpired(
-              expired.id,
-              ft?.name || "隊伍A",
-              tt?.name || "隊伍B",
-              expired.matchInfo?.date || "",
-              allIds,
-            );
-            await deletePracticeMatch(expired.id);
-          } catch (err) {}
-        }
-        const expiredIds = new Set(expiredMatches.map((m) => m.id));
-        matches = matches.filter((m) => !expiredIds.has(m.id));
       }
       const enriched = await Promise.all(
         matches.map(async (match) => {

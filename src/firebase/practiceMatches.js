@@ -14,6 +14,10 @@ import {
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
+import { getMessages } from "./practiceMatchMessages";
+import { getFiles, deleteFile } from "./practiceMatchFiles";
+import { getRecordings, deleteRecording } from "./practiceMatchRecordings";
+import { getCalls, deleteCall } from "./practiceMatchCalls";
 
 const COLLECTION_NAME = "practice_matches";
 
@@ -249,6 +253,68 @@ export async function deletePracticeMatch(matchId) {
 }
 
 /**
+ * 連帶刪除練習賽及其所有子資料（訊息、檔案、錄音、通話記錄）
+ * @param {string} matchId - 練習賽 ID
+ * @returns {Promise<void>}
+ */
+export async function deletePracticeMatchCascade(matchId) {
+  // 刪除訊息
+  try {
+    const messages = await getMessages(matchId);
+    await Promise.all(
+      messages.map((m) =>
+        deleteDoc(doc(db, "practice_match_messages", m.id)).catch((err) =>
+          console.warn("刪除訊息失敗:", m.id, err),
+        ),
+      ),
+    );
+  } catch (err) {
+    console.warn("讀取/刪除練習賽訊息失敗:", err);
+  }
+  // 刪除檔案
+  try {
+    const files = await getFiles(matchId);
+    await Promise.all(
+      files.map((f) =>
+        deleteFile(f.id, f.storagePath).catch((err) =>
+          console.warn("刪除檔案失敗:", f.id, err),
+        ),
+      ),
+    );
+  } catch (err) {
+    console.warn("讀取/刪除練習賽檔案失敗:", err);
+  }
+  // 刪除錄音
+  try {
+    const recordings = await getRecordings(matchId);
+    await Promise.all(
+      recordings.map((r) =>
+        deleteRecording(r.id, r.storagePath).catch((err) =>
+          console.warn("刪除錄音失敗:", r.id, err),
+        ),
+      ),
+    );
+  } catch (err) {
+    console.warn("讀取/刪除練習賽錄音失敗:", err);
+  }
+  // 刪除通話記錄
+  try {
+    const calls = await getCalls(matchId);
+    await Promise.all(
+      calls.map((c) =>
+        deleteCall(c.id).catch((err) =>
+          console.warn("刪除通話記錄失敗:", c.id, err),
+        ),
+      ),
+    );
+  } catch (err) {
+    console.warn("讀取/刪除練習賽通話記錄失敗:", err);
+  }
+  // 最後刪除練習賽本身
+  await deletePracticeMatch(matchId);
+}
+
+/**
  * 獲取用戶參與的所有練習賽（根據隊伍 ID 列表）
  * @param {Array<string>} teamIds - 用戶的隊伍 ID 列表
  * @returns {Promise<Array>} 練習賽列表
@@ -259,23 +325,47 @@ export async function getUserPracticeMatches(teamIds) {
       return [];
     }
 
+    // Firestore 'in' 查詢最多 30 個值；一般使用者隊伍數遠低於此
+    const chunks = [];
+    for (let i = 0; i < teamIds.length; i += 30) {
+      chunks.push(teamIds.slice(i, i + 30));
+    }
+
     const matchesRef = collection(db, COLLECTION_NAME);
-    const snapshot = await getDocs(matchesRef);
+    const matchesMap = new Map();
 
-    const matches = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      // 檢查用戶的任何隊伍是否參與此練習賽
-      if (
-        teamIds.includes(data.fromTeam) ||
-        teamIds.includes(data.toTeam) ||
-        teamIds.includes(data.affirmativeTeam) ||
-        teamIds.includes(data.negativeTeam)
-      ) {
-        matches.push({ id: docSnap.id, ...data });
+    for (const chunk of chunks) {
+      // 分別查詢 fromTeam / toTeam / affirmativeTeam / negativeTeam，避免讀取整個 collection 造成規則拒絕
+      const queries = [
+        query(matchesRef, where("fromTeam", "in", chunk)),
+        query(matchesRef, where("toTeam", "in", chunk)),
+        query(matchesRef, where("affirmativeTeam", "in", chunk)),
+        query(matchesRef, where("negativeTeam", "in", chunk)),
+      ];
+
+      const snapshots = await Promise.all(
+        queries.map((q) =>
+          getDocs(q).catch((err) => {
+            console.warn(
+              "getUserPracticeMatches 子查詢失敗:",
+              err?.code || err,
+            );
+            return null;
+          }),
+        ),
+      );
+
+      for (const snap of snapshots) {
+        if (!snap) continue;
+        snap.forEach((docSnap) => {
+          if (!matchesMap.has(docSnap.id)) {
+            matchesMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+          }
+        });
       }
-    });
+    }
 
+    const matches = Array.from(matchesMap.values());
     console.log("getUserPracticeMatches - 匹配到的練習賽數量:", matches.length);
 
     // 客戶端排序（按日期降序）
@@ -313,22 +403,45 @@ export async function updatePracticeMatchInfo(matchId, matchInfo) {
 
 /**
  * 清理已過期的練習賽（日期已過）
- * @param {Array} matches - 練習賽列表
+ * @param {Array} matches - 練習賽列表（可選擇性帶 invitation 欄位作為時間後援）
  * @returns {Array<Object>} 過期的練習賽列表（含 id、fromTeam、toTeam）
  */
 export function getExpiredMatches(matches) {
   const now = new Date();
+  const nowMs = now.getTime();
   const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
   const nowTimeStr = now.toTimeString().slice(0, 5); // HH:MM
 
+  const toMillis = (val) => {
+    if (!val) return null;
+    if (val instanceof Date) return isNaN(val) ? null : val.getTime();
+    if (typeof val === "object" && typeof val.toMillis === "function")
+      return val.toMillis();
+    if (typeof val === "object" && typeof val.toDate === "function")
+      return val.toDate().getTime();
+    if (typeof val === "string" || typeof val === "number") {
+      const d = new Date(val);
+      return isNaN(d) ? null : d.getTime();
+    }
+    return null;
+  };
+
   return matches.filter((match) => {
-    const date = match.matchInfo?.date;
-    if (!date) return false; // 未設定日期的不自動刪除
     if (match.status === "completed") return false;
-    if (date < todayStr) return true; // 日期已過
-    if (date === todayStr) {
-      const time = match.matchInfo?.time;
-      if (time && time < nowTimeStr) return true; // 當天但時間已過
+    const date = match.matchInfo?.date;
+    if (date) {
+      if (date < todayStr) return true;
+      if (date === todayStr) {
+        const time = match.matchInfo?.time;
+        if (time && time < nowTimeStr) return true;
+      }
+      return false;
+    }
+    // 未設定 matchInfo.date 時，改用 invitation 的時間判斷
+    const inv = match.invitation;
+    if (inv) {
+      const invEnd = toMillis(inv.endTime) || toMillis(inv.practiceTime);
+      if (invEnd && invEnd < nowMs) return true;
     }
     return false;
   });

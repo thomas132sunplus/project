@@ -17,6 +17,24 @@ export async function hideInvitation(invitationId) {
 }
 
 /**
+ * 將邀請標記為過期（status=expired），避免被自動重新建立練習賽
+ * @param {string} invitationId - 邀請 ID
+ * @returns {Promise<void>}
+ */
+export async function markInvitationExpired(invitationId) {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, invitationId);
+    await updateDoc(docRef, {
+      status: "expired",
+      respondedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("標記邀請過期失敗:", error);
+    throw error;
+  }
+}
+
+/**
  * 批次隱藏邀請（設 status=deleted）
  * @param {string[]} invitationIds - 邀請 ID 陣列
  * @returns {Promise<void>}
@@ -33,6 +51,56 @@ export async function hideInvitationsBatch(invitationIds) {
   } catch (error) {
     console.error("批次隱藏邀請失敗:", error);
     throw error;
+  }
+}
+/**
+ * 將指定團隊配對下所有 accepted 邀請標記為 deleted（用於取消練習賽的後備清理）
+ * @param {string} teamA
+ * @param {string} teamB
+ * @param {string} tournamentId
+ * @returns {Promise<number>} 標記的邀請數量
+ */
+export async function hideAcceptedInvitationsByTeams(
+  teamA,
+  teamB,
+  tournamentId,
+) {
+  try {
+    const invitationsRef = collection(db, COLLECTION_NAME);
+    // 查兩個方向：fromTeam==A,toTeam==B 與 fromTeam==B,toTeam==A
+    const q1 = query(
+      invitationsRef,
+      where("tournamentId", "==", tournamentId),
+      where("fromTeam", "==", teamA),
+      where("toTeam", "==", teamB),
+      where("status", "==", "accepted"),
+    );
+    const q2 = query(
+      invitationsRef,
+      where("tournamentId", "==", tournamentId),
+      where("fromTeam", "==", teamB),
+      where("toTeam", "==", teamA),
+      where("status", "==", "accepted"),
+    );
+    const [s1, s2] = await Promise.all([
+      getDocs(q1).catch(() => null),
+      getDocs(q2).catch(() => null),
+    ]);
+    const ids = [];
+    if (s1) s1.forEach((d) => ids.push(d.id));
+    if (s2) s2.forEach((d) => ids.push(d.id));
+    await Promise.all(
+      ids.map((id) =>
+        updateDoc(doc(db, COLLECTION_NAME, id), {
+          status: "deleted",
+          respondedAt: serverTimestamp(),
+        }).catch((e) => console.warn("標記邀請 deleted 失敗:", id, e)),
+      ),
+    );
+    return ids.length;
+  } catch (err) {
+    console.warn("hideAcceptedInvitationsByTeams 失敗:", err);
+    return 0;
   }
 }
 /**
@@ -360,20 +428,56 @@ export async function getAcceptedInvitations(teamIds) {
       return [];
     }
 
-    const invitationsRef = collection(db, COLLECTION_NAME);
-    const snapshot = await getDocs(invitationsRef);
+    // Firestore 'in' 查詢最多 30 個值
+    const chunks = [];
+    for (let i = 0; i < teamIds.length; i += 30) {
+      chunks.push(teamIds.slice(i, i + 30));
+    }
 
-    const invitations = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      // 只獲取已接受的邀請，且用戶的隊伍是接收方或發送方
-      if (
-        data.status === "accepted" &&
-        (teamIds.includes(data.fromTeam) || teamIds.includes(data.toTeam))
-      ) {
-        invitations.push({ id: docSnap.id, ...data });
+    const invitationsRef = collection(db, COLLECTION_NAME);
+    const invitationsMap = new Map();
+
+    for (const chunk of chunks) {
+      // 分別查詢 fromTeam / toTeam，避免讀取整個 collection 造成規則拒絕
+      const queries = [
+        query(
+          invitationsRef,
+          where("status", "==", "accepted"),
+          where("fromTeam", "in", chunk),
+        ),
+        query(
+          invitationsRef,
+          where("status", "==", "accepted"),
+          where("toTeam", "in", chunk),
+        ),
+      ];
+
+      const snapshots = await Promise.all(
+        queries.map((q) =>
+          getDocs(q).catch((err) => {
+            console.warn(
+              "getAcceptedInvitations 子查詢失敗:",
+              err?.code || err,
+            );
+            return null;
+          }),
+        ),
+      );
+
+      for (const snap of snapshots) {
+        if (!snap) continue;
+        snap.forEach((docSnap) => {
+          if (!invitationsMap.has(docSnap.id)) {
+            invitationsMap.set(docSnap.id, {
+              id: docSnap.id,
+              ...docSnap.data(),
+            });
+          }
+        });
       }
-    });
+    }
+
+    const invitations = Array.from(invitationsMap.values());
 
     // 客戶端排序
     invitations.sort((a, b) => {

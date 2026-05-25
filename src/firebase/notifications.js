@@ -11,11 +11,79 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
   writeBatch,
   serverTimestamp,
   getDocs,
 } from "firebase/firestore";
 import { db, auth } from "./config";
+
+// 正式站網址（所有 email 開頭都會附上）
+export const SITE_URL = "https://edgewalker-6c6ac.web.app";
+
+/**
+ * 取得使用者 email（從 Firestore users/{uid} 讀取，找不到時回傳 null）
+ * 結果會快取於記憶體中以避免重複查詢。
+ */
+const _userEmailCache = new Map();
+async function getUserEmail(userId) {
+  if (!userId) return null;
+  if (_userEmailCache.has(userId)) return _userEmailCache.get(userId);
+  try {
+    const snap = await getDoc(doc(db, "users", userId));
+    const email = snap.exists() ? snap.data().email || null : null;
+    _userEmailCache.set(userId, email);
+    return email;
+  } catch (err) {
+    console.warn("⚠️ 取得使用者 email 失敗:", userId, err?.message);
+    return null;
+  }
+}
+
+function escapeHtml(str = "") {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * 將通知寫入 `mail` collection，由 Firebase「Trigger Email」extension 發送。
+ * 信件開頭必附正式站網址。
+ */
+async function enqueueEmailForNotification({
+  toEmail,
+  type,
+  title,
+  message,
+  linkTo,
+}) {
+  if (!toEmail) return;
+  const fullLink = linkTo
+    ? `${SITE_URL}${linkTo.startsWith("/") ? linkTo : `/${linkTo}`}`
+    : SITE_URL;
+  const subject = `[邊境之外] ${title || "新通知"}`;
+  const text = `${SITE_URL}\n\n${title || ""}\n${message || ""}\n\n前往查看：${fullLink}`;
+  const html = `
+    <div style="font-family:Arial,'Microsoft JhengHei',sans-serif;line-height:1.6;color:#222;">
+      <p style="margin:0 0 12px;"><a href="${SITE_URL}" style="color:#2563eb;">${SITE_URL}</a></p>
+      <h2 style="margin:0 0 8px;font-size:18px;">${escapeHtml(title || "")}</h2>
+      <p style="margin:0 0 16px;white-space:pre-wrap;">${escapeHtml(message || "")}</p>
+      <p style="margin:0;"><a href="${fullLink}" style="color:#fff;background:#2563eb;padding:8px 14px;border-radius:6px;text-decoration:none;display:inline-block;">前往查看</a></p>
+      <p style="margin:16px 0 0;color:#888;font-size:12px;">此信為「邊境之外」系統自動寄送（通知類型：${escapeHtml(type || "")}）</p>
+    </div>`;
+  try {
+    await addDoc(collection(db, "mail"), {
+      to: toEmail,
+      message: { subject, text, html },
+      createdAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.warn("⚠️ 寄送通知 email 失敗:", err?.message);
+  }
+}
 
 // 通知類型常量
 export const NOTIFICATION_TYPES = {
@@ -145,6 +213,20 @@ export const createNotification = async (
       isRead: false,
       createdAt: serverTimestamp(),
     });
+
+    // 同步寄送 email
+    try {
+      const toEmail = await getUserEmail(userId);
+      await enqueueEmailForNotification({
+        toEmail,
+        type,
+        title,
+        message,
+        linkTo,
+      });
+    } catch (mailErr) {
+      console.warn("⚠️ 通知 email 入列失敗:", mailErr?.message);
+    }
   } catch (error) {
     console.error("❌ 創建通知失敗:", error);
     throw error;
@@ -196,6 +278,24 @@ export const createBatchNotifications = async (
         });
       });
       await batch.commit();
+    }
+
+    // 同步寄送 email 給每位接收者
+    try {
+      const emails = await Promise.all(userIds.map((uid) => getUserEmail(uid)));
+      await Promise.all(
+        emails.map((toEmail) =>
+          enqueueEmailForNotification({
+            toEmail,
+            type,
+            title,
+            message,
+            linkTo,
+          }),
+        ),
+      );
+    } catch (mailErr) {
+      console.warn("⚠️ 批量通知 email 入列失敗:", mailErr?.message);
     }
   } catch (error) {
     console.error("❌ 批量創建通知失敗:", error);

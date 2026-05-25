@@ -48,6 +48,8 @@ export function PracticeMatching() {
   // 取得毫秒 timestamp
   const getTime = (val) => {
     if (!val) return null;
+    // 處理 JavaScript Date 物件（Firestore 某些版本回傳 Date 而非 Timestamp）
+    if (val instanceof Date) return isNaN(val) ? null : val.getTime();
     if (typeof val === "object" && typeof val.toDate === "function") {
       return val.toDate().getTime();
     }
@@ -77,22 +79,31 @@ export function PracticeMatching() {
     const myRanges = myTeamPracticeEvents
       .filter((ev) => selectedPracticeTimes.includes(ev.startTime))
       .map((ev) => {
-        const start = ev.startTime;
+        const start =
+          typeof ev.startTime === "number"
+            ? ev.startTime
+            : getTime(ev.startTime);
         const end = ev.endTime ? getTime(ev.endTime) : start;
         return { start, end };
-      });
+      })
+      .filter(({ start }) => start !== null);
     // 取得自己的隊伍 ID 列表
     const myTeamIds = myTeams.map((t) => t.id);
     const candidates = teams
-      .filter((team) => !myTeamIds.includes(team.id)) // 排除自己的隊伍
+      .filter((team) => team && team.id && !myTeamIds.includes(team.id)) // 排除自己的隊伍與 null
       .map((team) => {
         // 找出與自己任一區間有重疊的對方事件
         const overlapEvents = practiceEvents.filter((event) => {
           if (event.teamId !== team.id) return false;
           const eventStart = getTime(event.startTime);
+          if (eventStart === null) return false;
           const eventEnd = event.endTime ? getTime(event.endTime) : eventStart;
           return myRanges.some(
-            ({ start, end }) => eventStart <= end && eventEnd >= start,
+            ({ start, end }) =>
+              start !== null &&
+              end !== null &&
+              eventStart <= end &&
+              eventEnd >= start,
           );
         });
         const overlapTimes = overlapEvents.map((ev) => getTime(ev.startTime));
@@ -247,7 +258,8 @@ export function PracticeMatching() {
       const teamIds = tournament.participatingTeams || [];
       const teamPromises = teamIds.map((id) => getTeam(id));
       const teamsData = await Promise.all(teamPromises);
-      setTeams(teamsData);
+      // 過濾 null/undefined（已刪除的隊伍）
+      setTeams(teamsData.filter((t) => t && t.id));
     } catch (err) {
       console.error("載入隊伍失敗:", err);
       alert("載入隊伍失敗");
@@ -404,38 +416,43 @@ export function PracticeMatching() {
     // 找出有參加該盃賽的我的隊伍（myTeams 與 teams 交集）
     const myTeamIds = myTeams.map((t) => t.id);
     const participatingMyTeams = teams.filter((t) => myTeamIds.includes(t.id));
-    if (participatingMyTeams.length > 0) {
-      const defaultTeam = participatingMyTeams[0];
-      setSelectedMyTeam((prev) => {
-        // 僅在未選擇或選擇的隊伍不在本盃賽時才自動設預設
-        if (!prev || !participatingMyTeams.some((t) => t.id === prev.id)) {
-          // 只在切換代表隊伍時才自動全選
-          const events = practiceEvents.filter(
-            (ev) => ev.teamId === defaultTeam.id,
-          );
-          // 轉成 { ...event, startTime: timestamp }
-          const eventsWithTimestamp = events.map((ev) => ({
-            ...ev,
-            startTime: getTime(ev.startTime),
-          }));
-          setMyTeamPracticeEvents(eventsWithTimestamp);
-          setSelectedPracticeTimes(
-            eventsWithTimestamp
-              .map((ev) => ev.startTime)
-              .filter((t) => t !== null),
-          );
-          return defaultTeam;
-        }
-        // 若沒切換代表隊伍，只更新事件，不動勾選
-        const events = practiceEvents.filter((ev) => ev.teamId === prev.id);
-        setMyTeamPracticeEvents(events);
-        return prev;
-      });
-    } else {
+    if (participatingMyTeams.length === 0) {
       setSelectedMyTeam(null);
       setMyTeamPracticeEvents([]);
       setSelectedPracticeTimes([]);
+      return;
     }
+    // 決定代表隊伍：若目前選擇仍在參賽名單內則維持，否則使用第一支
+    const currentTeam =
+      selectedMyTeam &&
+      participatingMyTeams.some((t) => t.id === selectedMyTeam.id)
+        ? selectedMyTeam
+        : participatingMyTeams[0];
+    const isTeamChanged =
+      !selectedMyTeam ||
+      !participatingMyTeams.some((t) => t.id === selectedMyTeam.id);
+    if (isTeamChanged) {
+      setSelectedMyTeam(currentTeam);
+    }
+    // 轉換該隊伍的練習賽事件（startTime 統一為毫秒數字）
+    const events = practiceEvents.filter((ev) => ev.teamId === currentTeam.id);
+    const eventsWithTimestamp = events.map((ev) => ({
+      ...ev,
+      startTime: getTime(ev.startTime),
+    }));
+    setMyTeamPracticeEvents(eventsWithTimestamp);
+    const newTimestamps = eventsWithTimestamp
+      .map((ev) => ev.startTime)
+      .filter((t) => t !== null);
+    setSelectedPracticeTimes((prevTimes) => {
+      // 切換了代表隊伍 → 全選新隊伍所有練習賽時間
+      if (isTeamChanged) return newTimestamps;
+      // 同一隊伍但 practiceEvents 剛從空載入完成（初始非同步載入）→ 補全選
+      if (prevTimes.length === 0 && newTimestamps.length > 0)
+        return newTimestamps;
+      // 使用者已手動調整勾選 → 保留，但移除已不存在的時間戳
+      return prevTimes.filter((t) => newTimestamps.includes(t));
+    });
   }, [selectedTournament, myTeams, teams, practiceEvents]);
 
   // 載入所有參賽隊伍的練習賽事件

@@ -140,7 +140,7 @@ export function PersonalCalendar() {
     return days;
   }, [year, month]);
 
-  // 將事件分配到日期
+  // 將事件分配到日期（支援跨日，事件會出現在每一天）
   const eventsByDate = useMemo(() => {
     const map = {};
 
@@ -149,23 +149,47 @@ export function PersonalCalendar() {
       map[dateStr].push(event);
     };
 
-    // 個人事件
-    personalEvents.forEach((ev) => {
+    const expandEvent = (ev, source, extra = {}) => {
       const start = ev.startTime?.toDate
         ? ev.startTime.toDate()
         : new Date(ev.startTime);
-      const key = toDateKey(start);
-      addToDate(key, { ...ev, source: "personal" });
-    });
+      const end = ev.endTime?.toDate
+        ? ev.endTime.toDate()
+        : ev.endTime
+          ? new Date(ev.endTime)
+          : null;
+      if (!end || isNaN(end) || end.getTime() <= start.getTime()) {
+        addToDate(toDateKey(start), { ...ev, source, ...extra });
+        return;
+      }
+      const cursor = new Date(start);
+      cursor.setHours(0, 0, 0, 0);
+      const last = new Date(end);
+      // 若結束剛好在 00:00，視為前一天結束
+      if (
+        last.getHours() === 0 &&
+        last.getMinutes() === 0 &&
+        last.getSeconds() === 0
+      ) {
+        last.setMilliseconds(-1);
+      }
+      last.setHours(0, 0, 0, 0);
+      const enriched = {
+        ...ev,
+        source,
+        ...extra,
+        _multiDay: cursor.getTime() !== last.getTime(),
+      };
+      while (cursor.getTime() <= last.getTime()) {
+        addToDate(toDateKey(cursor), enriched);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    };
 
-    // 隊伍事件
-    teamEvents.forEach((ev) => {
-      const start = ev.startTime?.toDate
-        ? ev.startTime.toDate()
-        : new Date(ev.startTime);
-      const key = toDateKey(start);
-      addToDate(key, { ...ev, source: "team" });
-    });
+    personalEvents.forEach((ev) => expandEvent(ev, "personal"));
+    teamEvents.forEach((ev) =>
+      expandEvent(ev, "team", { teamName: ev.teamName, teamId: ev.teamId }),
+    );
 
     return map;
   }, [personalEvents, teamEvents]);
@@ -719,20 +743,20 @@ function getEventColor(ev) {
 }
 
 function formatEventTime(ev) {
-  const toTime = (ts) => {
-    const d = ts?.toDate ? ts.toDate() : new Date(ts);
-    return d.toLocaleTimeString("zh-TW", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const toDt = (ts) => (ts?.toDate ? ts.toDate() : new Date(ts));
+  const toTime = (d) =>
+    d.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+  const toMD = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
 
   if (ev.allDay) return "全天";
+  if (!ev.startTime) return "";
 
-  const start = ev.startTime ? toTime(ev.startTime) : "";
-  const end = ev.endTime ? toTime(ev.endTime) : "";
+  const start = toDt(ev.startTime);
+  const end = ev.endTime ? toDt(ev.endTime) : null;
 
-  if (start && end) return `${start} - ${end}`;
-  if (start) return start;
-  return "";
+  if (!end) return toTime(start);
+
+  const sameDay = toDateKey(start) === toDateKey(end);
+  if (sameDay) return `${toTime(start)} - ${toTime(end)}`;
+  return `${toMD(start)} ${toTime(start)} ~ ${toMD(end)} ${toTime(end)}`;
 }

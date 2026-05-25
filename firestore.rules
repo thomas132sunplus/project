@@ -44,6 +44,8 @@ service cloud.firestore {
           (data.createdBy is string && data.createdBy == request.auth.uid)
           || (data.affirmativeTeam is string && isTeamMember(data.affirmativeTeam))
           || (data.negativeTeam is string && isTeamMember(data.negativeTeam))
+          || (data.fromTeam is string && isTeamMember(data.fromTeam))
+          || (data.toTeam is string && isTeamMember(data.toTeam))
         );
     }
 
@@ -334,6 +336,18 @@ service cloud.firestore {
     match /feedback/{feedbackId} {
       allow create: if signedIn();
       allow read, update, delete: if isAdmin();
+    }
+
+    // mail collection：搭配 Firebase「Trigger Email」extension 自動寄送通知信
+    // 只允許登入使用者建立信件文件，欄位限制為 to / message / createdAt；不可讀取或刪除（避免外洩）
+    match /mail/{mailId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['to', 'message', 'createdAt'])
+        && (request.resource.data.to is string || request.resource.data.to is list)
+        && request.resource.data.message is map
+        && request.resource.data.message.subject is string
+        && request.resource.data.createdAt == request.time;
     }
 
     match /guide_topics/{topicId} {

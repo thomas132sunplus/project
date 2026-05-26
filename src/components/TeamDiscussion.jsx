@@ -796,7 +796,9 @@ function CalendarSection({ teamId }) {
                     </span>
                   </div>
                   {event.description && (
-                    <p className="text-gray-600 mb-2">{event.description}</p>
+                    <p className="text-gray-600 mb-2 whitespace-pre-wrap">
+                      {event.description}
+                    </p>
                   )}
                   <div className="space-y-1 text-sm text-gray-500">
                     <p>

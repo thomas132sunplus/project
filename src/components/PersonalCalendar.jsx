@@ -4,11 +4,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { getUserTeams } from "../firebase/teams";
-import { getTeamEvents } from "../firebase/teamEvents";
+import { subscribeToTeamEvents } from "../firebase/teamEvents";
 import {
   subscribeToPersonalEvents,
   createPersonalEvent,
   deletePersonalEvent,
+  updatePersonalEvent,
 } from "../firebase/personalEvents";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
@@ -19,6 +20,8 @@ const EVENT_TYPES = [
   { value: "reminder", label: "提醒", color: "#F59E0B" },
   { value: "competition", label: "比賽", color: "#F97316" },
 ];
+
+const CUSTOM_TYPE_COLOR = "#6B7280";
 
 const TEAM_EVENT_COLORS = {
   meeting: "#8B5CF6",
@@ -65,7 +68,40 @@ export function PersonalCalendar() {
     tags: [],
   });
   const [customTagInput, setCustomTagInput] = useState("");
+  const [customTypeInput, setCustomTypeInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [hiddenCustomTypes, setHiddenCustomTypes] = useState(() => {
+    try {
+      const raw = localStorage.getItem("personalHiddenTypes");
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const persistHidden = (next) => {
+    setHiddenCustomTypes(next);
+    try {
+      localStorage.setItem(
+        "personalHiddenTypes",
+        JSON.stringify(Array.from(next)),
+      );
+    } catch {}
+  };
+  const handleDeleteCustomType = (value) => {
+    if (
+      !window.confirm(
+        `確定要從清單中隱藏「${value}」類型嗎？\n\n（不會刪除現有使用此類型的事件，只會從下拉選項移除）`,
+      )
+    )
+      return;
+    const next = new Set(hiddenCustomTypes);
+    next.add(value);
+    persistHidden(next);
+    if (eventForm.type === value) {
+      setEventForm((prev) => ({ ...prev, type: "personal" }));
+    }
+  };
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -81,6 +117,44 @@ export function PersonalCalendar() {
     );
     return Array.from(set).sort();
   }, [personalEvents, teamEvents]);
+
+  // 個人事件中出現過的自訂類型（排除內建類型與已隱藏項目）
+  const customEventTypes = useMemo(() => {
+    const builtin = new Set(EVENT_TYPES.map((t) => t.value));
+    const set = new Set();
+    personalEvents.forEach((e) => {
+      if (e.type && !builtin.has(e.type) && !hiddenCustomTypes.has(e.type))
+        set.add(e.type);
+    });
+    if (eventForm.type && !builtin.has(eventForm.type)) set.add(eventForm.type);
+    return Array.from(set).sort();
+  }, [personalEvents, eventForm.type, hiddenCustomTypes]);
+
+  const allEventTypes = useMemo(
+    () => [
+      ...EVENT_TYPES,
+      ...customEventTypes.map((t) => ({
+        value: t,
+        label: t,
+        color: CUSTOM_TYPE_COLOR,
+        custom: true,
+      })),
+    ],
+    [customEventTypes],
+  );
+
+  const handleAddCustomType = () => {
+    const v = customTypeInput.trim();
+    if (!v) return;
+    // 若之前被隱藏，重新可見
+    if (hiddenCustomTypes.has(v)) {
+      const next = new Set(hiddenCustomTypes);
+      next.delete(v);
+      persistHidden(next);
+    }
+    setEventForm((prev) => ({ ...prev, type: v }));
+    setCustomTypeInput("");
+  };
 
   const toggleEventTag = (tag) => {
     setEventForm((prev) => {
@@ -113,31 +187,56 @@ export function PersonalCalendar() {
     return () => unsub();
   }, [currentUser]);
 
-  // 載入所有隊伍事件（不限範圍，由前端 overlap 處理跨日/跨月顯示）
+  // 訂閱所有隊伍事件（即時同步新增/編輯/刪除）
   useEffect(() => {
     if (!currentUser) return;
-    loadTeamEvents();
-  }, [currentUser]);
+    let unsubs = [];
+    let teamMap = {};
+    let eventsByTeam = {};
 
-  const loadTeamEvents = async () => {
-    try {
-      setLoading(true);
-      const teams = await getUserTeams(currentUser.uid);
-
-      const allEvents = [];
-      for (const team of teams) {
-        const events = await getTeamEvents(team.id);
-        events.forEach((ev) => {
-          allEvents.push({ ...ev, teamName: team.name, teamId: team.id });
+    const recompute = () => {
+      const all = [];
+      Object.entries(eventsByTeam).forEach(([tid, evs]) => {
+        const t = teamMap[tid];
+        evs.forEach((ev) => {
+          all.push({
+            ...ev,
+            teamName: t?.name || "",
+            teamId: tid,
+          });
         });
+      });
+      setTeamEvents(all);
+    };
+
+    (async () => {
+      try {
+        setLoading(true);
+        const teams = await getUserTeams(currentUser.uid);
+        teamMap = Object.fromEntries(teams.map((t) => [t.id, t]));
+        unsubs = teams.map((team) =>
+          subscribeToTeamEvents(team.id, (evs) => {
+            eventsByTeam[team.id] = evs;
+            recompute();
+          }),
+        );
+      } catch (error) {
+        console.error("訂閱隊伍事件失敗:", error);
+      } finally {
+        setLoading(false);
       }
-      setTeamEvents(allEvents);
-    } catch (error) {
-      console.error("載入隊伍事件失敗:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+
+    return () => {
+      unsubs.forEach((u) => {
+        try {
+          u && u();
+        } catch (e) {
+          /* noop */
+        }
+      });
+    };
+  }, [currentUser]);
 
   // 計算月曆格子
   const calendarDays = useMemo(() => {
@@ -246,6 +345,7 @@ export function PersonalCalendar() {
     if (!selectedDate) return;
     const d = selectedDate;
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    setEditingEventId(null);
     setEventForm({
       title: "",
       description: "",
@@ -259,24 +359,52 @@ export function PersonalCalendar() {
     setShowEventForm(true);
   };
 
+  const handleEditEvent = (ev) => {
+    const toDt = (ts) => (ts?.toDate ? ts.toDate() : new Date(ts));
+    const toLocalInput = (d) => {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    const start = ev.startTime ? toDt(ev.startTime) : new Date();
+    const end = ev.endTime ? toDt(ev.endTime) : null;
+    setEditingEventId(ev.id);
+    setEventForm({
+      title: ev.title || "",
+      description: ev.description || "",
+      type: ev.type || "personal",
+      startTime: toLocalInput(start),
+      endTime: end ? toLocalInput(end) : "",
+      allDay: !!ev.allDay,
+      tags: Array.isArray(ev.tags) ? [...ev.tags] : [],
+    });
+    setCustomTagInput("");
+    setShowEventForm(true);
+  };
+
   const handleSubmitEvent = async (e) => {
     e.preventDefault();
     if (!eventForm.title.trim()) return;
 
     try {
       setSubmitting(true);
-      const typeInfo = EVENT_TYPES.find((t) => t.value === eventForm.type);
-      await createPersonalEvent(currentUser.uid, {
+      const typeInfo = allEventTypes.find((t) => t.value === eventForm.type);
+      const payload = {
         title: eventForm.title.trim(),
         description: eventForm.description.trim(),
         type: eventForm.type,
         startTime: new Date(eventForm.startTime),
         endTime: eventForm.endTime ? new Date(eventForm.endTime) : null,
         allDay: eventForm.allDay,
-        color: typeInfo?.color || "#3B82F6",
+        color: typeInfo?.color || CUSTOM_TYPE_COLOR,
         tags: eventForm.tags || [],
-      });
+      };
+      if (editingEventId) {
+        await updatePersonalEvent(editingEventId, payload);
+      } else {
+        await createPersonalEvent(currentUser.uid, payload);
+      }
       setShowEventForm(false);
+      setEditingEventId(null);
       setEventForm({
         title: "",
         description: "",
@@ -288,8 +416,8 @@ export function PersonalCalendar() {
       });
       setCustomTagInput("");
     } catch (error) {
-      console.error("建立事件失敗:", error);
-      alert("建立事件失敗，請稍後再試");
+      console.error("儲存事件失敗:", error);
+      alert("儲存事件失敗，請稍後再試");
     } finally {
       setSubmitting(false);
     }
@@ -460,16 +588,27 @@ export function PersonalCalendar() {
                           Array.isArray(evt.tags) && evt.tags.length > 0
                             ? ` #${evt.tags[0]}${evt.tags.length > 1 ? `+${evt.tags.length - 1}` : ""}`
                             : "";
+                        const evColor = getEventColor(evt);
                         return (
                           <div
                             key={i}
-                            className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                            className="truncate text-xs rounded px-1 py-0.5 flex items-center gap-1"
+                            style={{
+                              backgroundColor: `${evColor}22`,
+                              color: evColor,
+                            }}
                             title={`${evt.title}${tagSuffix ? ` (${evt.tags.map((t) => "#" + t).join(" ")})` : ""}`}
                           >
-                            {label} {evt.title}
-                            {tagSuffix && (
-                              <span className="text-blue-600">{tagSuffix}</span>
-                            )}
+                            <span
+                              className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: evColor }}
+                            />
+                            <span className="truncate">
+                              {label} {evt.title}
+                              {tagSuffix && (
+                                <span className="opacity-75">{tagSuffix}</span>
+                              )}
+                            </span>
                           </div>
                         );
                       })}
@@ -525,16 +664,27 @@ export function PersonalCalendar() {
                           Array.isArray(evt.tags) && evt.tags.length > 0
                             ? ` #${evt.tags[0]}${evt.tags.length > 1 ? `+${evt.tags.length - 1}` : ""}`
                             : "";
+                        const evColor = getEventColor(evt);
                         return (
                           <div
                             key={i}
-                            className="truncate text-xs text-gray-500 bg-gray-100 rounded px-1 py-0.5"
+                            className="truncate text-xs rounded px-1 py-0.5 flex items-center gap-1"
+                            style={{
+                              backgroundColor: `${evColor}22`,
+                              color: evColor,
+                            }}
                             title={`${evt.title}${tagSuffix ? ` (${evt.tags.map((t) => "#" + t).join(" ")})` : ""}`}
                           >
-                            {label} {evt.title}
-                            {tagSuffix && (
-                              <span className="text-blue-600">{tagSuffix}</span>
-                            )}
+                            <span
+                              className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: evColor }}
+                            />
+                            <span className="truncate">
+                              {label} {evt.title}
+                              {tagSuffix && (
+                                <span className="opacity-75">{tagSuffix}</span>
+                              )}
+                            </span>
                           </div>
                         );
                       })}
@@ -666,39 +816,86 @@ export function PersonalCalendar() {
                   <label className="block text-sm font-semibold text-gray-800 mb-2">
                     📋 事件類型
                   </label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {EVENT_TYPES.map((t) => {
+                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1">
+                    {allEventTypes.map((t) => {
                       const active = eventForm.type === t.value;
                       return (
-                        <label
-                          key={t.value}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${
-                            active
-                              ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
-                              : "bg-white border-gray-200 hover:bg-gray-50"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="personalEventType"
-                            value={t.value}
-                            checked={active}
-                            onChange={(e) =>
-                              setEventForm({
-                                ...eventForm,
-                                type: e.target.value,
-                              })
-                            }
-                            className="text-blue-600"
-                          />
-                          <span
-                            className={`text-sm ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                        <div key={t.value} className="relative">
+                          <label
+                            className={`flex items-center gap-2 px-3 py-2 ${t.custom ? "pr-8" : ""} rounded-lg border cursor-pointer transition ${
+                              active
+                                ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
+                                : "bg-white border-gray-200 hover:bg-gray-50"
+                            }`}
+                            title={t.label}
                           >
-                            {t.label}
-                          </span>
-                        </label>
+                            <input
+                              type="radio"
+                              name="personalEventType"
+                              value={t.value}
+                              checked={active}
+                              onChange={(e) =>
+                                setEventForm({
+                                  ...eventForm,
+                                  type: e.target.value,
+                                })
+                              }
+                              className="text-blue-600 flex-shrink-0"
+                            />
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: t.color }}
+                            />
+                            <span
+                              className={`text-sm break-all flex-1 min-w-0 ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                            >
+                              {t.label}
+                            </span>
+                            {t.custom && (
+                              <span className="flex-shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                                自訂
+                              </span>
+                            )}
+                          </label>
+                          {t.custom && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteCustomType(t.value);
+                              }}
+                              title="刪除此自訂類型"
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded leading-none"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
+                  </div>
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                    <input
+                      type="text"
+                      value={customTypeInput}
+                      onChange={(e) => setCustomTypeInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCustomType();
+                        }
+                      }}
+                      placeholder="新增自訂類型..."
+                      className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomType}
+                      className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 whitespace-nowrap"
+                    >
+                      + 新增
+                    </button>
                   </div>
                   <label className="flex items-center gap-2 px-3 py-2 mt-3 border-t border-gray-100 pt-3 cursor-pointer">
                     <input
@@ -749,7 +946,7 @@ export function PersonalCalendar() {
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  說明
+                  備註（選填）
                 </label>
                 <textarea
                   value={eventForm.description}
@@ -767,11 +964,20 @@ export function PersonalCalendar() {
                   disabled={submitting}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50"
                 >
-                  {submitting ? "建立中..." : "建立事件"}
+                  {submitting
+                    ? editingEventId
+                      ? "更新中..."
+                      : "建立中..."
+                    : editingEventId
+                      ? "更新事件"
+                      : "建立事件"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowEventForm(false)}
+                  onClick={() => {
+                    setShowEventForm(false);
+                    setEditingEventId(null);
+                  }}
                   className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
                 >
                   取消
@@ -806,10 +1012,27 @@ export function PersonalCalendar() {
                           個人
                         </span>
                       )}
+                      {(() => {
+                        const typeLabel = getEventTypeLabel(ev);
+                        if (!typeLabel || typeLabel === (ev.title || "").trim())
+                          return null;
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded mr-1"
+                            title="事件類型"
+                          >
+                            <span
+                              className="inline-block w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: getEventColor(ev) }}
+                            />
+                            {typeLabel}
+                          </span>
+                        );
+                      })()}
                       {formatEventTime(ev)}
                     </div>
                     {ev.description && (
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">
                         {ev.description}
                       </div>
                     )}
@@ -831,15 +1054,24 @@ export function PersonalCalendar() {
                       </div>
                     )}
                   </div>
-                  {/* 只能刪除自己的個人事件 */}
+                  {/* 只能編輯/刪除自己的個人事件 */}
                   {ev.source === "personal" && (
-                    <button
-                      onClick={() => handleDeleteEvent(ev.id)}
-                      className="text-red-500 hover:text-red-700 text-sm flex-shrink-0"
-                      title="刪除"
-                    >
-                      🗑️
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleEditEvent(ev)}
+                        className="text-blue-500 hover:text-blue-700 text-sm"
+                        title="編輯"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEvent(ev.id)}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                        title="刪除"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -883,10 +1115,27 @@ function getEventLabelForDate(evt, dsKey) {
 
 function getEventColor(ev) {
   if (ev.source === "team") {
-    return TEAM_EVENT_COLORS[ev.type] || TEAM_EVENT_COLORS.other;
+    return TEAM_EVENT_COLORS[ev.type] || ev.color || TEAM_EVENT_COLORS.other;
   }
   const typeInfo = EVENT_TYPES.find((t) => t.value === ev.type);
-  return typeInfo?.color || ev.color || "#3B82F6";
+  return typeInfo?.color || ev.color || "#6B7280";
+}
+
+const TEAM_TYPE_LABELS = {
+  meeting: "討論",
+  practice: "練習賽",
+  competition: "比賽",
+  deadline: "一辯稿繳交",
+  other: "其他",
+};
+
+function getEventTypeLabel(ev) {
+  if (!ev?.type) return "";
+  if (ev.source === "team") {
+    return TEAM_TYPE_LABELS[ev.type] || ev.type;
+  }
+  const typeInfo = EVENT_TYPES.find((t) => t.value === ev.type);
+  return typeInfo?.label || ev.type;
 }
 
 function formatEventTime(ev) {

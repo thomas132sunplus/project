@@ -10,6 +10,7 @@ import {
   getTeamEvents,
   subscribeToTeamEvents,
   deleteTeamEvent,
+  updateTeamEvent,
 } from "../firebase/teamEvents";
 import { getTeam } from "../firebase/teams";
 import { getUser } from "../firebase/users";
@@ -39,6 +40,15 @@ const EVENT_TYPES = [
   { value: "submission", label: "一辯稿繳交" },
   { value: "custom", label: "自訂" },
 ];
+
+// 儲存到 Firestore 的內建內部類型集合（用以判斷哪些是「自訂類型」）
+const BUILTIN_INTERNAL_TYPES = new Set([
+  "meeting",
+  "practice",
+  "competition",
+  "deadline",
+  "other",
+]);
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -211,9 +221,46 @@ export function TeamCalendar({ teamId }) {
   const [directEventEnd, setDirectEventEnd] = useState("10:00");
   const [directEventType, setDirectEventType] = useState("discussion");
   const [directEventName, setDirectEventName] = useState("");
+  const [directEventDescription, setDirectEventDescription] = useState("");
+  // 編輯中的事件 ID（null = 新增模式）
+  const [editingEventId, setEditingEventId] = useState(null);
   // 事件標籤（可從現有隊伍事件選取或自訂新增）
   const [directEventTags, setDirectEventTags] = useState([]);
   const [customTagInput, setCustomTagInput] = useState("");
+  // 自訂事件類型（在兩個 Modal 內共用 input 狀態）
+  const [customTypeInput, setCustomTypeInput] = useState("");
+  // 隱藏的自訂類型（依 teamId 保存於 localStorage）
+  const [hiddenCustomTypes, setHiddenCustomTypes] = useState(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`teamHiddenTypes_${teamId}`);
+      setHiddenCustomTypes(new Set(raw ? JSON.parse(raw) : []));
+    } catch {
+      setHiddenCustomTypes(new Set());
+    }
+  }, [teamId]);
+  const persistHidden = (next) => {
+    setHiddenCustomTypes(next);
+    try {
+      localStorage.setItem(
+        `teamHiddenTypes_${teamId}`,
+        JSON.stringify(Array.from(next)),
+      );
+    } catch {}
+  };
+  const handleDeleteCustomType = (value) => {
+    if (
+      !window.confirm(
+        `確定要從清單中隱藏「${value}」類型嗎？\n\n（不會刪除現有使用此類型的事件，只會從下拉選項移除）`,
+      )
+    )
+      return;
+    const next = new Set(hiddenCustomTypes);
+    next.add(value);
+    persistHidden(next);
+    if (eventType === value) setEventType("discussion");
+    if (directEventType === value) setDirectEventType("discussion");
+  };
 
   // ─── 載入隊伍成員 ───
   useEffect(() => {
@@ -628,16 +675,8 @@ export function TeamCalendar({ teamId }) {
   // ─── 建立事件 ───
   const handleCreateEvent = async () => {
     if (!selectedResult) return;
-    let title = "";
-    if (eventType === "discussion") title = "討論";
-    else if (eventType === "practice") title = "練習賽";
-    else if (eventType === "competition") title = "比賽";
-    else if (eventType === "submission") title = "一辯稿繳交";
-    else if (eventType === "custom") title = customEventName.trim();
-    if (!title) {
-      alert("請輸入事件名稱");
-      return;
-    }
+    const typeInfo = allEventTypes.find((t) => t.value === eventType);
+    const title = typeInfo?.label || eventType || "事件";
 
     const r = selectedResult;
     try {
@@ -648,6 +687,7 @@ export function TeamCalendar({ teamId }) {
         submission: "deadline",
         custom: "other",
       };
+      const internalType = typeMap[eventType] || eventType; // 自訂類型以字串本身儲存
       // 將 r.end="24:00" 轉成隔天的 00:00
       let realEndDate = r.endDate || r.date;
       let realEndTime = r.end;
@@ -659,10 +699,10 @@ export function TeamCalendar({ teamId }) {
       }
       await createTeamEvent(teamId, {
         title,
-        type: typeMap[eventType] || "other",
+        type: internalType,
         startTime: new Date(`${r.date}T${r.start}:00`),
         endTime: new Date(`${realEndDate}T${realEndTime}:00`),
-        description: `參與成員：${r.members.map((m) => m.name).join("、")}`,
+        description: directEventDescription,
         tags: directEventTags,
         creatorInfo: {
           userId: currentUser.uid,
@@ -675,6 +715,7 @@ export function TeamCalendar({ teamId }) {
       setSelectedResult(null);
       setCustomEventName("");
       setDirectEventTags([]);
+      setDirectEventDescription("");
       setCustomTagInput("");
       // 手動重新查詢，防止訂閱失效時暫不更新
       getTeamEvents(teamId).then(setEvents).catch(console.error);
@@ -699,16 +740,10 @@ export function TeamCalendar({ teamId }) {
       alert("結束時間必須晚於開始時間");
       return;
     }
-    let title = "";
-    if (directEventType === "discussion") title = "討論";
-    else if (directEventType === "practice") title = "練習賽";
-    else if (directEventType === "competition") title = "比賽";
-    else if (directEventType === "submission") title = "一辯稿繳交";
-    else if (directEventType === "custom") title = directEventName.trim();
-    if (!title) {
-      alert("請輸入事件名稱");
-      return;
-    }
+    const typeInfoDirect = allEventTypes.find(
+      (t) => t.value === directEventType,
+    );
+    const title = typeInfoDirect?.label || directEventType || "事件";
 
     try {
       const typeMap = {
@@ -718,31 +753,72 @@ export function TeamCalendar({ teamId }) {
         submission: "deadline",
         custom: "other",
       };
-      await createTeamEvent(teamId, {
+      const internalType = typeMap[directEventType] || directEventType;
+      const payload = {
         title,
-        type: typeMap[directEventType] || "other",
+        type: internalType,
         startTime: new Date(`${directEventDate}T${directEventStart}:00`),
         endTime: new Date(`${endDate}T${directEventEnd}:00`),
-        description: "",
+        description: directEventDescription,
         tags: directEventTags,
-        creatorInfo: {
-          userId: currentUser.uid,
-          userName: currentUser.displayName || currentUser.email,
-          userEmail: currentUser.email,
-        },
-      });
-      alert("事件已建立！");
+      };
+      if (editingEventId) {
+        await updateTeamEvent(editingEventId, payload);
+        alert("事件已更新！");
+      } else {
+        await createTeamEvent(teamId, {
+          ...payload,
+          creatorInfo: {
+            userId: currentUser.uid,
+            userName: currentUser.displayName || currentUser.email,
+            userEmail: currentUser.email,
+          },
+        });
+        alert("事件已建立！");
+      }
       setShowDirectEventForm(false);
+      setEditingEventId(null);
       setDirectEventName("");
       setDirectEventEndDate("");
+      setDirectEventDescription("");
       setDirectEventTags([]);
       setCustomTagInput("");
-      // 手動重新查詢，防止訂閱失效時暫不更新
-      getTeamEvents(teamId).then(setEvents).catch(console.error);
+      // 訂閱 (subscribeToTeamEvents) 會自動同步，不再手動 setEvents 以免覆蓋新資料
     } catch (err) {
-      console.error("建立事件失敗:", err);
-      alert("建立失敗，請稍後再試");
+      console.error("儲存事件失敗:", err);
+      alert("儲存失敗，請稍後再試");
     }
+  };
+
+  // 開啟編輯表單（套用「直接建立事件」表單）
+  const handleEditEvent = (event) => {
+    const toDt = (ts) => (ts?.toDate ? ts.toDate() : new Date(ts));
+    const start = event.startTime ? toDt(event.startTime) : new Date();
+    const end = event.endTime ? toDt(event.endTime) : null;
+    const startDs = toDateStr(start);
+    const endDs = end ? toDateStr(end) : startDs;
+    const fmtTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // 對應 type 到表單 value
+    const typeReverseMap = {
+      meeting: "discussion",
+      practice: "practice",
+      competition: "competition",
+      deadline: "submission",
+      other: "custom",
+    };
+    // 內建內部類型 → 表單 value；其他視為「使用者自訂類型」，直接以原本類型字串作為 value
+    const formType = typeReverseMap[event.type] || event.type || "custom";
+    setEditingEventId(event.id);
+    setDirectEventDate(startDs);
+    setDirectEventEndDate(endDs === startDs ? "" : endDs);
+    setDirectEventStart(fmtTime(start));
+    setDirectEventEnd(end ? fmtTime(end) : "10:00");
+    setDirectEventType(formType);
+    setDirectEventName(formType === "custom" ? event.title || "" : "");
+    setDirectEventDescription(event.description || "");
+    setDirectEventTags(Array.isArray(event.tags) ? [...event.tags] : []);
+    setCustomTagInput("");
+    setShowDirectEventForm(true);
   };
 
   // 取得目前隊伍日曆中已使用過的標籤（去重排序）
@@ -770,6 +846,55 @@ export function TeamCalendar({ teamId }) {
     if (!v) return;
     setDirectEventTags((prev) => (prev.includes(v) ? prev : [...prev, v]));
     setCustomTagInput("");
+  };
+
+  // 從現有事件聚合「自訂事件類型」（內部 type 不在 BUILTIN_INTERNAL_TYPES 內）
+  const customEventTypes = useMemo(() => {
+    const set = new Set();
+    events.forEach((e) => {
+      if (
+        e.type &&
+        !BUILTIN_INTERNAL_TYPES.has(e.type) &&
+        !hiddenCustomTypes.has(e.type)
+      )
+        set.add(e.type);
+    });
+    // 若表單目前選的類型是新自訂，先暫時顯示
+    if (
+      directEventType &&
+      !EVENT_TYPES.some((t) => t.value === directEventType)
+    )
+      set.add(directEventType);
+    if (eventType && !EVENT_TYPES.some((t) => t.value === eventType))
+      set.add(eventType);
+    return Array.from(set).sort();
+  }, [events, directEventType, eventType, hiddenCustomTypes]);
+
+  const allEventTypes = useMemo(
+    () => [
+      ...EVENT_TYPES,
+      ...customEventTypes.map((t) => ({
+        value: t,
+        label: t,
+        custom: true,
+      })),
+    ],
+    [customEventTypes],
+  );
+
+  // 新增自訂類型：直接套用為目前表單的 type
+  const handleAddCustomType = (which) => {
+    const v = customTypeInput.trim();
+    if (!v) return;
+    // 若之前被隱藏，重新可見
+    if (hiddenCustomTypes.has(v)) {
+      const next = new Set(hiddenCustomTypes);
+      next.delete(v);
+      persistHidden(next);
+    }
+    if (which === "direct") setDirectEventType(v);
+    else setEventType(v);
+    setCustomTypeInput("");
   };
 
   // 當前視圖事件（含跨日 overlap）
@@ -1108,6 +1233,7 @@ export function TeamCalendar({ teamId }) {
                             const evtBgMap = {
                               meeting: "bg-blue-400",
                               practice: "bg-green-400",
+                              competition: "bg-orange-400",
                               deadline: "bg-red-400",
                               other: "bg-gray-400",
                             };
@@ -1182,6 +1308,7 @@ export function TeamCalendar({ teamId }) {
                     const evtStyleMap = {
                       meeting: "bg-blue-100 text-blue-800",
                       practice: "bg-green-100 text-green-800",
+                      competition: "bg-orange-100 text-orange-800",
                       deadline: "bg-red-100 text-red-800",
                       other: "bg-gray-100 text-gray-800",
                     };
@@ -1219,12 +1346,14 @@ export function TeamCalendar({ teamId }) {
         <button
           onClick={() => {
             setShowDirectEventForm(true);
+            setEditingEventId(null);
             setDirectEventDate(toDateStr(new Date()));
             setDirectEventEndDate("");
             setDirectEventStart("09:00");
             setDirectEventEnd("10:00");
             setDirectEventType("discussion");
             setDirectEventName("");
+            setDirectEventDescription("");
             setDirectEventTags([]);
             setCustomTagInput("");
           }}
@@ -1312,6 +1441,9 @@ export function TeamCalendar({ teamId }) {
                       setShowEventForm(true);
                       setEventType("discussion");
                       setCustomEventName("");
+                      setDirectEventDescription(
+                        `參與成員：${r.members.map((m) => m.name).join("、")}`,
+                      );
                       setDirectEventTags([]);
                       setCustomTagInput("");
                     }}
@@ -1398,56 +1530,97 @@ export function TeamCalendar({ teamId }) {
               </div>
 
               {/* 右側：事件類型 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-3 h-full">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 h-full flex flex-col">
                 <label className="block text-sm font-semibold text-gray-800 mb-2">
                   📋 事件類型
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {EVENT_TYPES.map((t) => {
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                  {allEventTypes.map((t) => {
                     const active = eventType === t.value;
                     return (
-                      <label
-                        key={t.value}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${
-                          active
-                            ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
-                            : "bg-white border-gray-200 hover:bg-gray-50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="eventType"
-                          value={t.value}
-                          checked={active}
-                          onChange={(e) => setEventType(e.target.value)}
-                          className="text-blue-600"
-                        />
-                        <span
-                          className={`text-sm ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                      <div key={t.value} className="relative">
+                        <label
+                          className={`flex items-center gap-2 px-3 py-2 ${t.custom ? "pr-8" : ""} rounded-lg border cursor-pointer transition ${
+                            active
+                              ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
+                              : "bg-white border-gray-200 hover:bg-gray-50"
+                          }`}
+                          title={t.label}
                         >
-                          {t.label}
-                        </span>
-                      </label>
+                          <input
+                            type="radio"
+                            name="eventType"
+                            value={t.value}
+                            checked={active}
+                            onChange={(e) => setEventType(e.target.value)}
+                            className="text-blue-600 flex-shrink-0"
+                          />
+                          <span
+                            className={`text-sm break-all flex-1 min-w-0 ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                          >
+                            {t.label}
+                          </span>
+                          {t.custom && (
+                            <span className="flex-shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                              自訂
+                            </span>
+                          )}
+                        </label>
+                        {t.custom && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteCustomType(t.value);
+                            }}
+                            title="刪除此自訂類型"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded leading-none"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
+                </div>
+                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <input
+                    type="text"
+                    value={customTypeInput}
+                    onChange={(e) => setCustomTypeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCustomType("filter");
+                      }
+                    }}
+                    placeholder="新增自訂類型..."
+                    className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddCustomType("filter")}
+                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 whitespace-nowrap"
+                  >
+                    + 新增
+                  </button>
                 </div>
               </div>
             </div>
 
-            {eventType === "custom" && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  自訂事件名稱
-                </label>
-                <input
-                  type="text"
-                  value={customEventName}
-                  onChange={(e) => setCustomEventName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="輸入事件名稱..."
-                />
-              </div>
-            )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                備註（選填）
+              </label>
+              <textarea
+                value={directEventDescription}
+                onChange={(e) => setDirectEventDescription(e.target.value)}
+                rows={3}
+                placeholder="事件備註說明..."
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600">
@@ -1468,6 +1641,7 @@ export function TeamCalendar({ teamId }) {
                   setShowEventForm(false);
                   setSelectedResult(null);
                   setCustomEventName("");
+                  setDirectEventDescription("");
                   setDirectEventTags([]);
                   setCustomTagInput("");
                 }}
@@ -1485,7 +1659,7 @@ export function TeamCalendar({ teamId }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4">
-              📅 建立事件
+              {editingEventId ? "✏️ 編輯事件" : "📅 建立事件"}
             </h3>
 
             <div className="mb-4">
@@ -1600,69 +1774,112 @@ export function TeamCalendar({ teamId }) {
               </div>
 
               {/* 右側：事件類型 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-3 h-full">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 h-full flex flex-col">
                 <label className="block text-sm font-semibold text-gray-800 mb-2">
                   📋 事件類型
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {EVENT_TYPES.map((t) => {
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                  {allEventTypes.map((t) => {
                     const active = directEventType === t.value;
                     return (
-                      <label
-                        key={t.value}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition ${
-                          active
-                            ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
-                            : "bg-white border-gray-200 hover:bg-gray-50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="directEventType"
-                          value={t.value}
-                          checked={active}
-                          onChange={(e) => setDirectEventType(e.target.value)}
-                          className="text-blue-600"
-                        />
-                        <span
-                          className={`text-sm ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                      <div key={t.value} className="relative">
+                        <label
+                          className={`flex items-center gap-2 px-3 py-2 ${t.custom ? "pr-8" : ""} rounded-lg border cursor-pointer transition ${
+                            active
+                              ? "bg-blue-50 border-blue-500 ring-1 ring-blue-300"
+                              : "bg-white border-gray-200 hover:bg-gray-50"
+                          }`}
+                          title={t.label}
                         >
-                          {t.label}
-                        </span>
-                      </label>
+                          <input
+                            type="radio"
+                            name="directEventType"
+                            value={t.value}
+                            checked={active}
+                            onChange={(e) => setDirectEventType(e.target.value)}
+                            className="text-blue-600 flex-shrink-0"
+                          />
+                          <span
+                            className={`text-sm break-all flex-1 min-w-0 ${active ? "text-blue-700 font-medium" : "text-gray-700"}`}
+                          >
+                            {t.label}
+                          </span>
+                          {t.custom && (
+                            <span className="flex-shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                              自訂
+                            </span>
+                          )}
+                        </label>
+                        {t.custom && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteCustomType(t.value);
+                            }}
+                            title="刪除此自訂類型"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded leading-none"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
+                </div>
+                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <input
+                    type="text"
+                    value={customTypeInput}
+                    onChange={(e) => setCustomTypeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCustomType("direct");
+                      }
+                    }}
+                    placeholder="新增自訂類型..."
+                    className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddCustomType("direct")}
+                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 whitespace-nowrap"
+                  >
+                    + 新增
+                  </button>
                 </div>
               </div>
             </div>
 
-            {directEventType === "custom" && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  自訂事件名稱
-                </label>
-                <input
-                  type="text"
-                  value={directEventName}
-                  onChange={(e) => setDirectEventName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="輸入事件名稱..."
-                />
-              </div>
-            )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                備註（選填）
+              </label>
+              <textarea
+                value={directEventDescription}
+                onChange={(e) => setDirectEventDescription(e.target.value)}
+                rows={3}
+                placeholder="事件備註說明..."
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
             <div className="flex gap-2">
               <button
                 onClick={handleDirectCreateEvent}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
               >
-                確認建立
+                {editingEventId ? "確認更新" : "確認建立"}
               </button>
               <button
                 onClick={() => {
                   setShowDirectEventForm(false);
+                  setEditingEventId(null);
                   setDirectEventName("");
                   setDirectEventEndDate("");
+                  setDirectEventDescription("");
                   setDirectEventTags([]);
                   setCustomTagInput("");
                 }}
@@ -1692,16 +1909,32 @@ export function TeamCalendar({ teamId }) {
                 deadline: "border-l-red-500",
                 other: "border-l-gray-500",
               };
+              const TYPE_LABELS = {
+                meeting: "討論",
+                practice: "練習賽",
+                competition: "比賽",
+                deadline: "一辯稿繳交",
+                other: "其他",
+              };
+              const typeLabel = TYPE_LABELS[event.type] || event.type || "";
+              // 若事件標題本身就是類型名稱（常見於自訂類型），不再重複顯示徽章
+              const showTypeBadge =
+                typeLabel && typeLabel !== (event.title || "").trim();
               return (
                 <div
                   key={event.id}
                   className={`bg-white border border-gray-200 border-l-4 ${typeColors[event.type] || typeColors.other} rounded-lg p-3`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
                       <span className="font-medium text-gray-800">
                         {event.title}
                       </span>
+                      {showTypeBadge && (
+                        <span className="inline-block bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
+                          {typeLabel}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-500">
                         {(() => {
                           const end =
@@ -1723,25 +1956,36 @@ export function TeamCalendar({ teamId }) {
                         })()}
                       </span>
                     </div>
-                    <button
-                      onClick={async () => {
-                        if (!window.confirm(`確定要刪除「${event.title}」嗎？`))
-                          return;
-                        try {
-                          await deleteTeamEvent(event.id);
-                        } catch (err) {
-                          console.error("刪除事件失敗:", err);
-                          alert("刪除失敗，請稍後再試");
-                        }
-                      }}
-                      className="ml-2 text-red-400 hover:text-red-600 transition flex-shrink-0"
-                      title="刪除事件"
-                    >
-                      🗑️
-                    </button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className="text-blue-500 hover:text-blue-700 transition"
+                        title="編輯事件"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (
+                            !window.confirm(`確定要刪除「${event.title}」嗎？`)
+                          )
+                            return;
+                          try {
+                            await deleteTeamEvent(event.id);
+                          } catch (err) {
+                            console.error("刪除事件失敗:", err);
+                            alert("刪除失敗，請稍後再試");
+                          }
+                        }}
+                        className="text-red-400 hover:text-red-600 transition"
+                        title="刪除事件"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                   {event.description && (
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
                       {event.description}
                     </p>
                   )}

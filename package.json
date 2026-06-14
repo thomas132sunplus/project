@@ -19,6 +19,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
+    "firebase-admin": "^14.0.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
     "terser": "^5.46.1",

@@ -18,6 +18,7 @@ import { getMessages } from "./practiceMatchMessages";
 import { getFiles, deleteFile } from "./practiceMatchFiles";
 import { getRecordings, deleteRecording } from "./practiceMatchRecordings";
 import { getCalls, deleteCall } from "./practiceMatchCalls";
+import { cancelRefereePairingForMatch } from "./refereeInvitations";
 
 const COLLECTION_NAME = "practice_matches";
 
@@ -258,6 +259,12 @@ export async function deletePracticeMatch(matchId) {
  * @returns {Promise<void>}
  */
 export async function deletePracticeMatchCascade(matchId) {
+  // 取消裁判配對並以 email 通知裁判
+  try {
+    await cancelRefereePairingForMatch(matchId);
+  } catch (err) {
+    console.warn("取消裁判配對失敗:", err);
+  }
   // 刪除訊息
   try {
     const messages = await getMessages(matchId);

@@ -250,3 +250,66 @@ export async function declineRefereeInvitation(invitationId) {
 
   return inv;
 }
+
+/**
+ * 練習賽取消時，連帶取消該場的裁判配對，並以 email 通知裁判。
+ * - 已配對成功（accepted）的裁判：取消配對並寄送通知 email
+ * - 尚未回覆（pending）的邀請：一併標記取消（不另行通知）
+ * @param {string} matchId - 練習賽 ID
+ * @returns {Promise<number>} 受影響的邀請數量
+ */
+export async function cancelRefereePairingForMatch(matchId) {
+  if (!matchId) return 0;
+  let affected = 0;
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where("matchId", "==", matchId),
+    );
+    const snapshot = await getDocs(q);
+    const invitations = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    await Promise.all(
+      invitations
+        .filter((inv) => inv.status === "accepted" || inv.status === "pending")
+        .map(async (inv) => {
+          affected += 1;
+          const wasAccepted = inv.status === "accepted";
+          try {
+            await updateDoc(doc(db, COLLECTION_NAME, inv.id), {
+              status: "cancelled",
+              respondedAt: serverTimestamp(),
+            });
+          } catch (e) {
+            console.warn("取消邀裁配對失敗:", inv.id, e?.message);
+          }
+          // 僅對已配對成功的裁判寄送取消通知 email
+          if (wasAccepted) {
+            try {
+              const timeStr = inv.practiceTime
+                ? toDate(inv.practiceTime)?.toLocaleString("zh-TW") || ""
+                : "";
+              await createNotification(
+                inv.refereeId,
+                NOTIFICATION_TYPES.REFEREE_INVITATION_RESPONSE,
+                "練習賽已取消，邀裁配對同時取消",
+                `${inv.tournamentName || "練習賽"}：${inv.fromTeamName || "A隊"} vs ${inv.toTeamName || "B隊"}${timeStr ? `（${timeStr}）` : ""} 已取消，您不需再擔任本場裁判。`,
+                inv.id,
+                "/profile?tab=referee",
+                {
+                  refereeId: inv.refereeId,
+                  matchId,
+                  response: "match_cancelled",
+                },
+              );
+            } catch (e) {
+              console.warn("發送裁判取消配對通知失敗:", e?.message);
+            }
+          }
+        }),
+    );
+  } catch (e) {
+    console.warn("取消該場邀裁配對失敗:", e?.message);
+  }
+  return affected;
+}

@@ -4,6 +4,7 @@
 import { deleteTournament, getTournament } from "./tournaments";
 import { getTournamentMatches } from "./practiceMatches";
 import { deletePracticeMatch } from "./practiceMatches";
+import { cancelRefereePairingForMatch } from "./refereeInvitations";
 import { getMessages } from "./practiceMatchMessages";
 import { getFiles, deleteFile } from "./practiceMatchFiles";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
@@ -23,6 +24,12 @@ export async function deleteTournamentWithMatches(tournamentId, currentUserId) {
   // 1. 取得所有相關練習賽
   const matches = await getTournamentMatches(tournamentId);
   for (const match of matches) {
+    // 取消該場裁判配對並以 email 通知裁判
+    try {
+      await cancelRefereePairingForMatch(match.id);
+    } catch (err) {
+      console.warn("取消裁判配對失敗:", err);
+    }
     // 2. 刪除練習賽訊息
     const messages = await getMessages(match.id);
     for (const msg of messages) {

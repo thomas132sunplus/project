@@ -33,6 +33,7 @@ import { PracticeMatching } from "./components/PracticeMatching";
 import { PracticeMatchList } from "./components/PracticeMatchList";
 
 import { PracticeMatchDiscussion } from "./components/PracticeMatchDiscussion";
+import { RefereeZone } from "./components/RefereeZone";
 import { MatchRoom } from "./components/MatchRoom";
 import { Feedback } from "./components/Feedback";
 import { FeedbackList } from "./components/FeedbackList";
@@ -135,6 +136,7 @@ export function AppRoutes() {
           />
           <Route path="match-room/:id" element={<MatchRoom />} />
           <Route path="feedback" element={<Feedback />} />
+          <Route path="referee-zone" element={<RefereeZone />} />
           <Route path="feedback-list" element={<FeedbackList />} />
           <Route path="profile" element={<UserProfile />} />
           <Route path="activities" element={<ActivityList />} />

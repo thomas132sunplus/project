@@ -101,6 +101,8 @@ export const NOTIFICATION_TYPES = {
   MATCH_CANCELLED: "match_cancelled",
   TEAM_MEMBER_ADDED: "team_member_added",
   ANNOUNCEMENT: "announcement",
+  REFEREE_INVITATION: "referee_invitation",
+  REFEREE_INVITATION_RESPONSE: "referee_invitation_response",
 };
 
 // 通知類型的顯示配置
@@ -154,6 +156,16 @@ export const NOTIFICATION_CONFIG = {
     icon: "📝",
     color: "teal",
     label: "新反饋",
+  },
+  [NOTIFICATION_TYPES.REFEREE_INVITATION]: {
+    icon: "⚖️",
+    color: "indigo",
+    label: "邀裁邀請",
+  },
+  [NOTIFICATION_TYPES.REFEREE_INVITATION_RESPONSE]: {
+    icon: "⚖️",
+    color: "pink",
+    label: "邀裁回應",
   },
   [NOTIFICATION_TYPES.TEAM_MEMBER_ADDED]: {
     icon: "👋",

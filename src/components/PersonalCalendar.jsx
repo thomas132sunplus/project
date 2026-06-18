@@ -11,8 +11,33 @@ import {
   deletePersonalEvent,
   updatePersonalEvent,
 } from "../firebase/personalEvents";
+import {
+  subscribeToRefereeEvents,
+  createRefereeEvent,
+  updateRefereeEvent,
+  deleteRefereeEvent,
+  REFEREE_EVENT_TYPES,
+  REFEREE_TYPE_COLORS,
+} from "../firebase/refereeEvents";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+
+const REFEREE_EVENT_TYPE_OPTIONS = [
+  {
+    value: REFEREE_EVENT_TYPES.AVAILABLE,
+    label: REFEREE_EVENT_TYPES.AVAILABLE,
+    color: REFEREE_TYPE_COLORS[REFEREE_EVENT_TYPES.AVAILABLE],
+    referee: true,
+  },
+  {
+    value: REFEREE_EVENT_TYPES.JUDGING,
+    label: REFEREE_EVENT_TYPES.JUDGING,
+    color: REFEREE_TYPE_COLORS[REFEREE_EVENT_TYPES.JUDGING],
+    referee: true,
+  },
+];
+
+const REFEREE_TYPE_VALUES = REFEREE_EVENT_TYPE_OPTIONS.map((t) => t.value);
 
 const EVENT_TYPES = [
   { value: "personal", label: "個人事項", color: "#3B82F6" },
@@ -31,7 +56,7 @@ const TEAM_EVENT_COLORS = {
   other: "#6B7280",
 };
 
-export function PersonalCalendar() {
+export function PersonalCalendar({ isReferee = false, refereeName = "" } = {}) {
   const { currentUser } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   // 新增 viewMode 狀態
@@ -55,6 +80,7 @@ export function PersonalCalendar() {
   }, [currentDate]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [personalEvents, setPersonalEvents] = useState([]);
+  const [refereeEvents, setRefereeEvents] = useState([]);
   const [teamEvents, setTeamEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEventForm, setShowEventForm] = useState(false);
@@ -71,6 +97,7 @@ export function PersonalCalendar() {
   const [customTypeInput, setCustomTypeInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [editingEventId, setEditingEventId] = useState(null);
+  const [editingEventSource, setEditingEventSource] = useState("personal");
   const [hiddenCustomTypes, setHiddenCustomTypes] = useState(() => {
     try {
       const raw = localStorage.getItem("personalHiddenTypes");
@@ -126,13 +153,19 @@ export function PersonalCalendar() {
       if (e.type && !builtin.has(e.type) && !hiddenCustomTypes.has(e.type))
         set.add(e.type);
     });
-    if (eventForm.type && !builtin.has(eventForm.type)) set.add(eventForm.type);
+    if (
+      eventForm.type &&
+      !builtin.has(eventForm.type) &&
+      !REFEREE_TYPE_VALUES.includes(eventForm.type)
+    )
+      set.add(eventForm.type);
     return Array.from(set).sort();
   }, [personalEvents, eventForm.type, hiddenCustomTypes]);
 
   const allEventTypes = useMemo(
     () => [
       ...EVENT_TYPES,
+      ...(isReferee ? REFEREE_EVENT_TYPE_OPTIONS : []),
       ...customEventTypes.map((t) => ({
         value: t,
         label: t,
@@ -140,7 +173,7 @@ export function PersonalCalendar() {
         custom: true,
       })),
     ],
-    [customEventTypes],
+    [customEventTypes, isReferee],
   );
 
   const handleAddCustomType = () => {
@@ -186,6 +219,18 @@ export function PersonalCalendar() {
     });
     return () => unsub();
   }, [currentUser]);
+
+  // 訂閱裁判事件（可邀裁 / 裁比賽）
+  useEffect(() => {
+    if (!currentUser || !isReferee) {
+      setRefereeEvents([]);
+      return;
+    }
+    const unsub = subscribeToRefereeEvents(currentUser.uid, (events) => {
+      setRefereeEvents(events);
+    });
+    return () => unsub();
+  }, [currentUser, isReferee]);
 
   // 訂閱所有隊伍事件（即時同步新增/編輯/刪除）
   useEffect(() => {
@@ -324,9 +369,10 @@ export function PersonalCalendar() {
     teamEvents.forEach((ev) =>
       expandEvent(ev, "team", { teamName: ev.teamName, teamId: ev.teamId }),
     );
+    refereeEvents.forEach((ev) => expandEvent(ev, "referee"));
 
     return map;
-  }, [personalEvents, teamEvents]);
+  }, [personalEvents, teamEvents, refereeEvents]);
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -346,6 +392,7 @@ export function PersonalCalendar() {
     const d = selectedDate;
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     setEditingEventId(null);
+    setEditingEventSource("personal");
     setEventForm({
       title: "",
       description: "",
@@ -368,6 +415,7 @@ export function PersonalCalendar() {
     const start = ev.startTime ? toDt(ev.startTime) : new Date();
     const end = ev.endTime ? toDt(ev.endTime) : null;
     setEditingEventId(ev.id);
+    setEditingEventSource(ev.source === "referee" ? "referee" : "personal");
     setEventForm({
       title: ev.title || "",
       description: ev.description || "",
@@ -398,13 +446,29 @@ export function PersonalCalendar() {
         color: typeInfo?.color || CUSTOM_TYPE_COLOR,
         tags: eventForm.tags || [],
       };
-      if (editingEventId) {
+      const isRefereeType = REFEREE_TYPE_VALUES.includes(eventForm.type);
+      if (isRefereeType) {
+        // 裁判事件（可邀裁 / 裁比賽）寫入 referee_events
+        if (editingEventId && editingEventSource === "referee") {
+          await updateRefereeEvent(editingEventId, {
+            ...payload,
+            refereeName,
+          });
+        } else {
+          await createRefereeEvent(currentUser.uid, refereeName, payload);
+        }
+      } else if (editingEventId && editingEventSource === "referee") {
+        // 由裁判類型改為一般類型：刪除舊裁判事件，建立新個人事件
+        await deleteRefereeEvent(editingEventId);
+        await createPersonalEvent(currentUser.uid, payload);
+      } else if (editingEventId) {
         await updatePersonalEvent(editingEventId, payload);
       } else {
         await createPersonalEvent(currentUser.uid, payload);
       }
       setShowEventForm(false);
       setEditingEventId(null);
+      setEditingEventSource("personal");
       setEventForm({
         title: "",
         description: "",
@@ -423,10 +487,14 @@ export function PersonalCalendar() {
     }
   };
 
-  const handleDeleteEvent = async (eventId) => {
+  const handleDeleteEvent = async (ev) => {
     if (!confirm("確定要刪除此事件？")) return;
     try {
-      await deletePersonalEvent(eventId);
+      if (ev.source === "referee") {
+        await deleteRefereeEvent(ev.id);
+      } else {
+        await deletePersonalEvent(ev.id);
+      }
     } catch (error) {
       console.error("刪除失敗:", error);
       alert("刪除失敗");
@@ -545,6 +613,30 @@ export function PersonalCalendar() {
           <span className="w-3 h-3 rounded-full bg-orange-500 inline-block"></span>{" "}
           比賽
         </span>
+        {isReferee && (
+          <>
+            <span className="flex items-center gap-1">
+              <span
+                className="w-3 h-3 rounded-full inline-block"
+                style={{
+                  backgroundColor:
+                    REFEREE_TYPE_COLORS[REFEREE_EVENT_TYPES.AVAILABLE],
+                }}
+              ></span>{" "}
+              可邀裁
+            </span>
+            <span className="flex items-center gap-1">
+              <span
+                className="w-3 h-3 rounded-full inline-block"
+                style={{
+                  backgroundColor:
+                    REFEREE_TYPE_COLORS[REFEREE_EVENT_TYPES.JUDGING],
+                }}
+              ></span>{" "}
+              裁比賽
+            </span>
+          </>
+        )}
       </div>
 
       {/* 日曆格子 */}
@@ -1007,6 +1099,10 @@ export function PersonalCalendar() {
                         <span className="inline-block bg-purple-100 text-purple-700 text-xs px-1.5 py-0.5 rounded mr-1">
                           {ev.teamName}
                         </span>
+                      ) : ev.source === "referee" ? (
+                        <span className="inline-block bg-teal-100 text-teal-700 text-xs px-1.5 py-0.5 rounded mr-1">
+                          裁判
+                        </span>
                       ) : (
                         <span className="inline-block bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded mr-1">
                           個人
@@ -1054,8 +1150,8 @@ export function PersonalCalendar() {
                       </div>
                     )}
                   </div>
-                  {/* 只能編輯/刪除自己的個人事件 */}
-                  {ev.source === "personal" && (
+                  {/* 只能編輯/刪除自己的個人事件或裁判事件 */}
+                  {(ev.source === "personal" || ev.source === "referee") && (
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleEditEvent(ev)}
@@ -1065,7 +1161,7 @@ export function PersonalCalendar() {
                         ✏️
                       </button>
                       <button
-                        onClick={() => handleDeleteEvent(ev.id)}
+                        onClick={() => handleDeleteEvent(ev)}
                         className="text-red-500 hover:text-red-700 text-sm"
                         title="刪除"
                       >

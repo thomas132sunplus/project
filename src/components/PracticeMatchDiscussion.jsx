@@ -25,6 +25,8 @@ import {
   notifyMatchCancelRequest,
   notifyMatchCancelled,
 } from "../firebase/notificationHelpers";
+import { getAcceptedRefereesByMatch } from "../firebase/refereeInvitations";
+import { getUser } from "../firebase/users";
 
 export function PracticeMatchDiscussion() {
   const { id } = useParams();
@@ -415,6 +417,11 @@ export function PracticeMatchDiscussion() {
             active={activeTab === "chat"}
             onClick={() => setActiveTab("chat")}
           />
+          <TabButton
+            label="⚖️ 邀裁區"
+            active={activeTab === "referee"}
+            onClick={() => setActiveTab("referee")}
+          />
         </div>
 
         {/* Tab 內容 */}
@@ -432,8 +439,92 @@ export function PracticeMatchDiscussion() {
             />
           )}
           {activeTab === "chat" && <ChatSection matchId={id} />}
+          {activeTab === "referee" && <RefereeSection matchId={id} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+// 邀裁區元件：顯示此場練習賽配對成功的裁判及其性別、備註
+function RefereeSection({ matchId }) {
+  const [referees, setReferees] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const accepted = await getAcceptedRefereesByMatch(matchId);
+        const enriched = await Promise.all(
+          accepted.map(async (inv) => {
+            let profile = null;
+            try {
+              const user = await getUser(inv.refereeId);
+              profile = user?.refereeProfile || null;
+            } catch {
+              /* ignore */
+            }
+            return {
+              id: inv.id,
+              name: profile?.name || inv.refereeName,
+              gender: profile?.gender || "",
+              notes: profile?.notes || "",
+            };
+          }),
+        );
+        if (active) setReferees(enriched);
+      } catch (err) {
+        console.error("載入邀裁區失敗:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [matchId]);
+
+  if (loading) {
+    return <p className="text-gray-500 text-sm">載入中...</p>;
+  }
+
+  if (referees.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">此場練習賽尚未配對裁判。</p>
+        <p className="text-gray-400 text-sm mt-1">
+          可前往「裁判區」邀請裁判擔任評審。
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-bold text-gray-800">⚖️ 配對成功的裁判</h3>
+      {referees.map((ref) => (
+        <div
+          key={ref.id}
+          className="border border-teal-200 bg-teal-50 rounded-lg p-4"
+        >
+          <p className="font-semibold text-gray-800">
+            {ref.name}
+            {ref.gender && (
+              <span className="ml-2 text-sm text-gray-500">
+                （{ref.gender}）
+              </span>
+            )}
+          </p>
+          {ref.notes && (
+            <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
+              備註：{ref.notes}
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

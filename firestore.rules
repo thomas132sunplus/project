@@ -312,7 +312,8 @@ service cloud.firestore {
              'chat_message', 'tournament_update', 'meeting_start', 'meeting_reminder',
              'practice_invitation', 'invitation_response', 'calendar_event',
              'file_upload', 'recording_upload', 'feedback',
-             'match_cancel_request', 'match_cancelled', 'team_member_added', 'announcement']
+             'match_cancel_request', 'match_cancelled', 'team_member_added', 'announcement',
+             'referee_invitation', 'referee_invitation_response']
         && request.resource.data.isRead == false
         && request.resource.data.createdAt == request.time
         && request.resource.data.metadata is map
@@ -329,6 +330,50 @@ service cloud.firestore {
       allow create: if signedIn()
         && (
           request.resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
+    }
+
+    // 裁判日曆事件（可邀裁 / 裁比賽）：可邀裁事件需被所有登入者讀取（裁判區邀裁日曆）
+    match /referee_events/{eventId} {
+      // get/list：已登入即可讀取（裁判區需彙整所有裁判的可邀裁事件）
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.refereeId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (
+          resource.data.refereeId == request.auth.uid
+          || isAdmin()
+        );
+    }
+
+    // 邀裁邀請：選手發送、裁判回應；可被該場練習賽參與者讀取
+    match /referee_invitations/{invitationId} {
+      allow read: if signedIn()
+        && (
+          resource.data.fromUserId == request.auth.uid
+          || resource.data.refereeId == request.auth.uid
+          || (resource.data.matchId is string && canAccessMatchById(resource.data.matchId))
+          || isAdmin()
+        );
+      // create：發送者必須是自己，初始狀態 pending
+      allow create: if signedIn()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.status == 'pending';
+      // update：裁判可回應自己的邀請；發送者可取消；其他登入者僅能將狀態改為 cancelled（用於先同意者配對成功後自動取消）
+      allow update: if signedIn()
+        && (
+          resource.data.refereeId == request.auth.uid
+          || resource.data.fromUserId == request.auth.uid
+          || isAdmin()
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt'])
+            && request.resource.data.status == 'cancelled'
+          )
+        );
+      allow delete: if signedIn()
+        && (
+          resource.data.fromUserId == request.auth.uid
           || isAdmin()
         );
     }

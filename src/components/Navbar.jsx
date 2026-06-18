@@ -49,6 +49,11 @@ export function Navbar() {
       active:
         isActive("/practice-matches") || isActive("/practice-match-discussion"),
     },
+    {
+      to: "/referee-zone",
+      label: "裁判區",
+      active: isActive("/referee-zone"),
+    },
     { to: "/feedback", label: "進步區", active: isActive("/feedback") },
     { to: "/profile", label: "個人主頁", active: isActive("/profile") },
   ];

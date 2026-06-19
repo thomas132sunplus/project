@@ -3,6 +3,10 @@
 
 import { useState, useEffect } from "react";
 import { getUser, updateUser, createOrUpdateUser } from "../firebase/users";
+import {
+  upsertRefereeRegistry,
+  removeRefereeRegistry,
+} from "../firebase/referees";
 import { deleteAccount } from "../firebase/auth";
 import { getUserTeams } from "../firebase/teams";
 import { Link, useLocation } from "react-router-dom";
@@ -226,6 +230,11 @@ export function UserProfile() {
         isReferee: true,
         refereeProfile,
       });
+      try {
+        await upsertRefereeRegistry(currentUserId, refereeProfile);
+      } catch (e) {
+        console.warn("更新裁判註冊表失敗:", e?.message);
+      }
       setUserData((prev) => ({ ...prev, isReferee: true, refereeProfile }));
       setShowRefereeForm(false);
       alert("裁判身分已儲存！");
@@ -244,6 +253,11 @@ export function UserProfile() {
     try {
       setSavingReferee(true);
       await updateUser(currentUserId, { isReferee: false });
+      try {
+        await removeRefereeRegistry(currentUserId);
+      } catch (e) {
+        console.warn("移除裁判註冊表失敗:", e?.message);
+      }
       setUserData((prev) => ({ ...prev, isReferee: false }));
       if (activeTab === "referee") setActiveTab("teams");
       alert("已取消裁判身分");

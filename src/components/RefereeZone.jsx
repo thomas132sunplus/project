@@ -9,6 +9,7 @@ import { getTournament } from "../firebase/tournaments";
 import { getUserPracticeMatches } from "../firebase/practiceMatches";
 import { getInvitation } from "../firebase/invitations";
 import { subscribeToAllAvailability } from "../firebase/refereeEvents";
+import { getAllReferees } from "../firebase/referees";
 import {
   getSentRefereeInvitations,
   createRefereeInvitationsBatch,
@@ -58,6 +59,12 @@ export function RefereeZone() {
   const [sending, setSending] = useState(false);
   const [calDate, setCalDate] = useState(new Date());
 
+  // 直接邀請相關狀態
+  const [allReferees, setAllReferees] = useState([]);
+  const [directMatchId, setDirectMatchId] = useState("");
+  const [directSelected, setDirectSelected] = useState({}); // { refereeId: true }
+  const [directSending, setDirectSending] = useState(false);
+
   // 訂閱所有裁判的「可邀裁」事件
   useEffect(() => {
     const unsub = subscribeToAllAvailability((events) => {
@@ -82,6 +89,13 @@ export function RefereeZone() {
         getSentRefereeInvitations(currentUser.uid),
       ]);
       setSentInvitations(sent);
+
+      try {
+        const refs = await getAllReferees();
+        setAllReferees(refs.filter((r) => r.userId !== currentUser.uid));
+      } catch (e) {
+        console.warn("載入裁判清單失敗:", e?.message);
+      }
 
       const enriched = await Promise.all(
         matches.map(async (m) => {
@@ -251,6 +265,71 @@ export function RefereeZone() {
       alert(err?.message || "發送失敗，請稍後再試");
     } finally {
       setSending(false);
+    }
+  };
+
+  // 有排定時間的練習賽（供直接邀請選擇）
+  const matchesWithTime = useMemo(
+    () => myMatches.filter((m) => m.startMs != null),
+    [myMatches],
+  );
+
+  const toggleDirectSelect = (refereeId) => {
+    setDirectSelected((prev) => {
+      const cur = { ...prev };
+      if (cur[refereeId]) delete cur[refereeId];
+      else cur[refereeId] = true;
+      return cur;
+    });
+  };
+
+  const handleDirectInvite = async () => {
+    const match = matchesWithTime.find((m) => m.id === directMatchId);
+    if (!match) {
+      alert("請先選擇要邀請裁判的練習賽");
+      return;
+    }
+    if (matchHasAccepted(match.id)) {
+      alert("此場練習賽已配對裁判，無法再發送邀請");
+      return;
+    }
+    const refereeIds = Object.keys(directSelected).filter(
+      (id) => directSelected[id],
+    );
+    if (refereeIds.length === 0) {
+      alert("請至少選擇一位裁判");
+      return;
+    }
+    const referees = allReferees
+      .filter((r) => refereeIds.includes(r.userId))
+      .map((r) => ({ id: r.userId, name: r.name }));
+    if (!window.confirm(`確定發送邀請給 ${referees.length} 位裁判嗎？`)) return;
+
+    try {
+      setDirectSending(true);
+      await createRefereeInvitationsBatch({
+        matchId: match.id,
+        tournamentId: match.tournamentId,
+        tournamentName: match.tournamentName,
+        fromUserId: currentUser.uid,
+        fromUserName: currentUser.displayName || currentUser.email || "選手",
+        fromTeam: match.fromTeam,
+        toTeam: match.toTeam,
+        fromTeamName: match.fromTeamName,
+        toTeamName: match.toTeamName,
+        practiceTime: match.startMs ? new Date(match.startMs) : null,
+        endTime: match.endMs ? new Date(match.endMs) : null,
+        referees,
+      });
+      setDirectSelected({});
+      const sent = await getSentRefereeInvitations(currentUser.uid);
+      setSentInvitations(sent);
+      alert("邀請已發送！先同意的裁判將配對成功。");
+    } catch (err) {
+      console.error("直接邀請裁判失敗:", err);
+      alert(err?.message || "發送失敗，請稍後再試");
+    } finally {
+      setDirectSending(false);
     }
   };
 
@@ -579,6 +658,109 @@ export function RefereeZone() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* 直接邀請：列出所有註冊裁判 */}
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mt-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-3">
+          📨 直接邀請裁判
+        </h2>
+        <p className="text-xs text-gray-500 mb-4">
+          不受可邀裁時段限制，可直接邀請任一位註冊裁判。選擇練習賽與裁判後點「直接邀請」，
+          一鍵發送多筆邀請；先同意的裁判即配對成功，其餘邀請會自動取消。
+        </p>
+
+        {matchesWithTime.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            您目前沒有已排定時間的練習賽。請先前往
+            <Link
+              to="/practice-matches"
+              className="text-blue-600 underline mx-1"
+            >
+              練習賽討論區
+            </Link>
+            建立練習賽。
+          </p>
+        ) : allReferees.length === 0 ? (
+          <p className="text-sm text-gray-500">目前沒有其他註冊為裁判的人。</p>
+        ) : (
+          <>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                選擇練習賽
+              </label>
+              <select
+                value={directMatchId}
+                onChange={(e) => setDirectMatchId(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              >
+                <option value="">請選擇練習賽…</option>
+                {matchesWithTime.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.tournamentName}｜{m.myTeamName} vs {m.opponentName}｜
+                    {fmtRange(m.startMs, m.endMs)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {directMatchId && matchHasAccepted(directMatchId) ? (
+              <div className="bg-green-50 text-green-700 text-sm px-3 py-2 rounded">
+                ✅ 此場已配對裁判，邀請流程結束。
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                  {allReferees.map((ref) => {
+                    const status = directMatchId
+                      ? invitationStatusFor(directMatchId, ref.userId)
+                      : null;
+                    const checked = !!directSelected[ref.userId];
+                    return (
+                      <label
+                        key={ref.userId}
+                        className="flex items-center gap-2 p-2 rounded border border-gray-100 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={status === "pending"}
+                          onChange={() => toggleDirectSelect(ref.userId)}
+                          className="w-4 h-4"
+                        />
+                        <span className="flex-1 text-sm text-gray-800">
+                          {ref.name}
+                          {ref.gender && (
+                            <span className="text-gray-400 ml-2 text-xs">
+                              （{ref.gender}）
+                            </span>
+                          )}
+                        </span>
+                        {status === "pending" && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                            已邀請
+                          </span>
+                        )}
+                        {status === "declined" && (
+                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                            已拒絕
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={handleDirectInvite}
+                  disabled={directSending || !directMatchId}
+                  className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition text-sm disabled:bg-gray-400"
+                >
+                  {directSending ? "發送中..." : "直接邀請"}
+                </button>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>

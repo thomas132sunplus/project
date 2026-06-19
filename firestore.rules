@@ -347,6 +347,16 @@ service cloud.firestore {
         );
     }
 
+    // 裁判公開註冊表：所有登入者可讀取（裁判區列出所有裁判）；僅本人可寫入
+    match /referees/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && (request.auth.uid == userId || isAdmin())
+        && request.resource.data.userId == userId;
+      allow delete: if signedIn()
+        && (request.auth.uid == userId || isAdmin());
+    }
+
     // 邀裁邀請：選手發送、裁判回應；可被該場練習賽參與者讀取
     match /referee_invitations/{invitationId} {
       allow read: if signedIn()

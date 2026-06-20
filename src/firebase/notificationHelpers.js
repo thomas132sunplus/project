@@ -568,7 +568,11 @@ export const getMatchParticipantIds = async (matchId) => {
  * @param {string} announcementTitle - 公告標題
  * @param {string} senderId - 發布者（admin）的 UID，會被排除
  */
-export const notifyNewAnnouncement = async (announcementTitle, senderId) => {
+export const notifyNewAnnouncement = async (
+  announcementTitle,
+  senderId,
+  announcementContent = "",
+) => {
   try {
     const usersSnap = await getDocs(collection(db, "users"));
     const allUserIds = usersSnap.docs
@@ -583,6 +587,11 @@ export const notifyNewAnnouncement = async (announcementTitle, senderId) => {
         ? announcementTitle.substring(0, 50) + "..."
         : announcementTitle;
 
+    // email 專用內文：完整公告（標題 + 內容），站內通知仍維持簡短預覽
+    const emailMessage = announcementContent
+      ? `${announcementTitle}\n\n${announcementContent}`
+      : announcementTitle;
+
     await createBatchNotifications(
       allUserIds,
       NOTIFICATION_TYPES.ANNOUNCEMENT,
@@ -590,6 +599,8 @@ export const notifyNewAnnouncement = async (announcementTitle, senderId) => {
       message,
       null,
       "/announcements",
+      {},
+      emailMessage,
     );
   } catch (error) {
     console.error("❌ 發送新公告通知失敗:", error);

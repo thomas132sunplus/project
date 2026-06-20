@@ -58,19 +58,22 @@ async function enqueueEmailForNotification({
   type,
   title,
   message,
+  emailMessage,
   linkTo,
 }) {
   if (!toEmail) return;
+  // email 內文優先使用 emailMessage（完整內容），否則退回站內通知的 message
+  const body = emailMessage || message || "";
   const fullLink = linkTo
     ? `${SITE_URL}${linkTo.startsWith("/") ? linkTo : `/${linkTo}`}`
     : SITE_URL;
   const subject = `[邊境之外] ${title || "新通知"}`;
-  const text = `${SITE_URL}\n\n${title || ""}\n${message || ""}\n\n前往查看：${fullLink}`;
+  const text = `${SITE_URL}\n\n${title || ""}\n${body}\n\n前往查看：${fullLink}`;
   const html = `
     <div style="font-family:Arial,'Microsoft JhengHei',sans-serif;line-height:1.6;color:#222;">
       <p style="margin:0 0 12px;"><a href="${SITE_URL}" style="color:#2563eb;">${SITE_URL}</a></p>
       <h2 style="margin:0 0 8px;font-size:18px;">${escapeHtml(title || "")}</h2>
-      <p style="margin:0 0 16px;white-space:pre-wrap;">${escapeHtml(message || "")}</p>
+      <p style="margin:0 0 16px;white-space:pre-wrap;">${escapeHtml(body)}</p>
       <p style="margin:0;"><a href="${fullLink}" style="color:#fff;background:#2563eb;padding:8px 14px;border-radius:6px;text-decoration:none;display:inline-block;">前往查看</a></p>
       <p style="margin:16px 0 0;color:#888;font-size:12px;">此信為「邊境之外」系統自動寄送（通知類型：${escapeHtml(type || "")}）</p>
     </div>`;
@@ -207,6 +210,7 @@ export const createNotification = async (
   relatedId = null,
   linkTo = null,
   metadata = {},
+  emailMessage = null,
 ) => {
   try {
     const notificationsRef = collection(db, "notifications");
@@ -234,6 +238,7 @@ export const createNotification = async (
         type,
         title,
         message,
+        emailMessage,
         linkTo,
       });
     } catch (mailErr) {
@@ -263,6 +268,7 @@ export const createBatchNotifications = async (
   relatedId = null,
   linkTo = null,
   metadata = {},
+  emailMessage = null,
 ) => {
   try {
     const notificationsRef = collection(db, "notifications");
@@ -302,6 +308,7 @@ export const createBatchNotifications = async (
             type,
             title,
             message,
+            emailMessage,
             linkTo,
           }),
         ),

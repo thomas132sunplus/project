@@ -69,7 +69,7 @@ export function Announcements() {
       setSubmitting(true);
       setFormError("");
       await createAnnouncement({ title, content });
-      notifyNewAnnouncement(title.trim(), currentUser.uid);
+      notifyNewAnnouncement(title.trim(), currentUser.uid, content.trim());
       setTitle("");
       setContent("");
       setShowForm(false);

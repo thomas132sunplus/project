@@ -1065,6 +1065,65 @@ export function PracticeMatching() {
             </div>
           )}
 
+          {/* 相關時間：參賽隊伍的練習賽事件時間，點選即可直接邀請 */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">相關時間</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              以下為參賽隊伍的練習賽事件時間，點選即可直接邀請該隊伍
+            </p>
+            {(() => {
+              const myTeamIds = myTeams.map((t) => t.id);
+              // 只顯示其他參賽隊伍（排除自己）的練習賽事件，依開始時間排序
+              const relatedEvents = practiceEvents
+                .filter((ev) => !myTeamIds.includes(ev.teamId))
+                .filter((ev) => teams.some((t) => t.id === ev.teamId))
+                .map((ev) => ({ ...ev, _start: getTime(ev.startTime) }))
+                .filter((ev) => ev._start !== null)
+                .sort((a, b) => a._start - b._start);
+              if (relatedEvents.length === 0) {
+                return (
+                  <p className="text-gray-500 text-center py-4">
+                    目前沒有其他參賽隊伍的練習賽時間
+                  </p>
+                );
+              }
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {relatedEvents.map((event) => {
+                    const team = teams.find((t) => t.id === event.teamId);
+                    const startObj = new Date(event._start);
+                    const endVal = event.endTime
+                      ? getTime(event.endTime)
+                      : null;
+                    const endObj = endVal ? new Date(endVal) : null;
+                    let label = startObj.toLocaleString("zh-TW");
+                    if (endObj && !isNaN(endObj)) {
+                      label += " ~ " + endObj.toLocaleString("zh-TW");
+                    }
+                    return (
+                      <button
+                        key={`${event.teamId}-${event._start}`}
+                        onClick={() => handleInviteTeam(team)}
+                        className="flex flex-col items-start gap-1 px-3 py-2 rounded-lg border-2 text-left transition hover:shadow-md bg-white"
+                        style={{
+                          borderColor: team?.teamColor || "#3B82F6",
+                        }}
+                        title="點選即可直接邀請"
+                      >
+                        <span className="font-semibold text-gray-800">
+                          {team?.name || "未知隊伍"}
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          🕒 {label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
           {/* 參賽隊伍列表（移除個別邀請按鈕） */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4">參賽隊伍</h3>

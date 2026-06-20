@@ -21,6 +21,16 @@ export function MyTeams() {
     setJoinLoading(true);
     setJoinError(null);
     try {
+      // 驗證輸入的隊伍代碼必須與該隊伍代碼一致才能加入
+      if (
+        joinCode.trim().toUpperCase() !==
+        (foundTeam.inviteCode || "").toUpperCase()
+      ) {
+        setJoinError("隊伍代碼與該隊伍不符，請重新查詢");
+        setFoundTeam(null);
+        setJoinLoading(false);
+        return;
+      }
       // 檢查是否已在隊伍內
       if (foundTeam.members?.includes(currentUser.uid)) {
         setJoinError("你已經是該隊伍成員");
@@ -114,14 +124,16 @@ export function MyTeams() {
       return;
     }
     setLoading(true);
-    getUserTeams(currentUserId).then((data) => {
-      setTeams(data);
-      setLoading(false);
-    }).catch((err) => {
-      console.error("載入隊伍失敗:", err);
-      setError("載入隊伍失敗，請重新整理頁面");
-      setLoading(false);
-    });
+    getUserTeams(currentUserId)
+      .then((data) => {
+        setTeams(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("載入隊伍失敗:", err);
+        setError("載入隊伍失敗，請重新整理頁面");
+        setLoading(false);
+      });
   }, [currentUserId]);
 
   const handleCreateTeam = async (e) => {
@@ -370,7 +382,12 @@ export function MyTeams() {
                 <input
                   type="text"
                   value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    setJoinCode(e.target.value.toUpperCase());
+                    // 代碼變更後須重新查詢，避免加入到不符的隊伍
+                    if (foundTeam) setFoundTeam(null);
+                    if (joinError) setJoinError(null);
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   placeholder="例：8X2K9Q"
                   maxLength={8}
